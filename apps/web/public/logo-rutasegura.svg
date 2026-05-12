@@ -1,0 +1,11 @@
+<svg width="260" height="72" viewBox="0 0 260 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>RutaSegura</title>
+  <rect x="4" y="8" width="56" height="56" rx="14" fill="#1D7A5C"/>
+  <path d="M32 17.2L46.4 22.8V33.1C46.4 43.3 40.2 51.7 32 55.3C23.8 51.7 17.6 43.3 17.6 33.1V22.8L32 17.2Z" fill="#FFFFFF"/>
+  <path d="M24 42.2C28 35.5 36.1 38.8 39.8 30.9" stroke="#255C99" stroke-width="4.4" stroke-linecap="round"/>
+  <circle cx="24.2" cy="42" r="4" fill="#B36B00"/>
+  <path d="M39.7 24.8C36 24.8 33 27.7 33 31.4C33 36.4 39.7 42.6 39.7 42.6C39.7 42.6 46.4 36.4 46.4 31.4C46.4 27.7 43.4 24.8 39.7 24.8Z" fill="#1D7A5C"/>
+  <circle cx="39.7" cy="31.4" r="2.2" fill="#FFFFFF"/>
+  <text x="76" y="35" fill="#17201C" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700">RutaSegura</text>
+  <text x="77" y="53" fill="#65716B" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="700">Cartagena</text>
+</svg>

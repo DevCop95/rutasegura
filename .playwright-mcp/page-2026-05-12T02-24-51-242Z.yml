@@ -1,0 +1,327 @@
+- generic [ref=e1]:
+  - main [ref=e2]:
+    - generic [ref=e3]:
+      - generic "RutaSegura" [ref=e4]:
+        - generic "RutaSegura" [ref=e5]:
+          - img [ref=e6]
+        - generic [ref=e13]:
+          - strong [ref=e14]: RutaSegura
+          - generic [ref=e15]: Cartagena / MapLibre mapcn / SQLite
+      - navigation "Navegacion principal" [ref=e16]:
+        - button "Mapa" [ref=e17] [cursor=pointer]:
+          - img [ref=e18]
+          - text: Mapa
+        - button "Empresas" [ref=e21] [cursor=pointer]:
+          - img [ref=e22]
+          - text: Empresas
+        - button "Admin" [active] [ref=e26] [cursor=pointer]:
+          - img [ref=e27]
+          - text: Admin
+        - button "Notificaciones" [ref=e30] [cursor=pointer]:
+          - img [ref=e31]
+        - button "Reportar" [ref=e34] [cursor=pointer]:
+          - img [ref=e35]
+          - text: Reportar
+    - status [ref=e36]: El panel admin solo esta disponible para usuarios admin.
+    - generic [ref=e37]:
+      - complementary "Cuenta, filtros y notificaciones" [ref=e38]:
+        - generic [ref=e39]:
+          - heading "Cuenta" [level=2] [ref=e40]
+          - generic [ref=e41]:
+            - button "Login" [ref=e42] [cursor=pointer]:
+              - img [ref=e43]
+              - text: Login
+            - button "Registro" [ref=e46] [cursor=pointer]:
+              - img [ref=e47]
+              - text: Registro
+          - generic "Rol de registro" [ref=e50]:
+            - button "Ciudadano" [ref=e51] [cursor=pointer]
+            - button "Empresa" [ref=e52] [cursor=pointer]
+            - button "Admin" [ref=e53] [cursor=pointer]
+        - region "Perfil publico" [ref=e54]:
+          - img [ref=e56]
+          - generic [ref=e59]:
+            - strong [ref=e60]: Invitado
+            - generic [ref=e61]: Sin sesion
+          - generic [ref=e62]: Ciudadano
+          - generic [ref=e63]:
+            - generic [ref=e64]:
+              - strong [ref=e65]: "0"
+              - text: reputacion
+            - generic [ref=e66]:
+              - strong [ref=e67]: "0"
+              - text: verificados
+            - generic [ref=e68]:
+              - strong [ref=e69]: "0"
+              - text: no verificados
+            - generic [ref=e70]:
+              - strong [ref=e71]: "0"
+              - text: rechazados
+        - generic [ref=e72]:
+          - heading "Nuevo reporte" [level=2] [ref=e73]:
+            - img [ref=e74]
+            - text: Nuevo reporte
+          - generic [ref=e75]:
+            - generic [ref=e76]:
+              - generic [ref=e77]: Categoria
+              - combobox "Categoria" [ref=e78]:
+                - option "Hurto" [selected]
+                - option "Acoso"
+                - option "Iluminacion"
+                - option "Alerta"
+            - generic [ref=e79]:
+              - generic [ref=e80]: Titulo
+              - textbox "Titulo" [ref=e81]:
+                - /placeholder: Ej. Hurto cerca de parada
+            - generic [ref=e82]:
+              - generic [ref=e83]: Descripcion
+              - textbox "Descripcion" [ref=e84]:
+                - /placeholder: Sin nombres, placas ni datos personales.
+            - generic [ref=e85]:
+              - generic [ref=e86]: Zona
+              - textbox "Zona" [ref=e87]:
+                - /placeholder: Centro, Manga, Getsemani
+            - generic [ref=e88]:
+              - textbox "Latitud" [ref=e89]: "10.4236"
+              - textbox "Longitud" [ref=e90]: "-75.5478"
+            - button "Crear reporte" [ref=e91] [cursor=pointer]
+        - generic [ref=e92]:
+          - heading "Filtros" [level=2] [ref=e93]:
+            - img [ref=e94]
+            - text: Filtros
+          - generic [ref=e96]:
+            - generic [ref=e97]:
+              - generic [ref=e98]: Categoria
+              - combobox "Categoria" [ref=e99]:
+                - option "Todas" [selected]
+                - option "Hurto"
+                - option "Acoso"
+                - option "Iluminacion"
+            - generic [ref=e100]:
+              - generic [ref=e101]: Fecha
+              - combobox "Fecha" [ref=e102]:
+                - option "Ultimas 24 h" [selected]
+                - option "7 dias"
+                - option "30 dias"
+            - generic [ref=e103]:
+              - generic [ref=e104]: Verificacion
+              - combobox "Verificacion" [ref=e105]:
+                - option "Todos" [selected]
+                - option "Oficial"
+                - option "Comunidad"
+                - option "No verificado"
+        - generic [ref=e106]:
+          - heading "Mi ruta" [level=2] [ref=e107]:
+            - img [ref=e108]
+            - text: Mi ruta
+          - generic [ref=e110]:
+            - generic [ref=e111]:
+              - generic [ref=e112]: Origen
+              - textbox "Origen" [ref=e113]:
+                - /placeholder: Casa, colegio, trabajo
+            - generic [ref=e114]:
+              - generic [ref=e115]: Destino
+              - textbox "Destino" [ref=e116]:
+                - /placeholder: Destino frecuente
+            - generic [ref=e117]:
+              - button "Modo mujeres" [ref=e118] [cursor=pointer]:
+                - img [ref=e119]
+                - text: Modo mujeres
+              - button "Capas" [ref=e121] [cursor=pointer]:
+                - img [ref=e122]
+                - text: Capas
+        - generic [ref=e126]:
+          - heading "Pendientes" [level=2] [ref=e127]:
+            - img [ref=e128]
+            - text: Pendientes
+          - generic [ref=e133]:
+            - button "Valida una empresa cercana" [ref=e134] [cursor=pointer]
+            - button "Aporta fuente para un reporte" [ref=e135] [cursor=pointer]
+            - button "Revisa posible duplicado" [ref=e136] [cursor=pointer]
+      - region "Mapa de reportes y puntos seguros" [ref=e137]:
+        - generic [ref=e138]:
+          - button "Incidentes" [ref=e139] [cursor=pointer]:
+            - img [ref=e140]
+            - text: Incidentes
+          - button "Puntos seguros" [ref=e141] [cursor=pointer]:
+            - img [ref=e142]
+            - text: Puntos seguros
+          - button "Ruta" [ref=e146] [cursor=pointer]:
+            - img [ref=e147]
+            - text: Ruta
+        - generic [ref=e268]:
+          - generic:
+            - region "Map" [ref=e269]
+            - button "Map marker" [ref=e290] [cursor=pointer]:
+              - img [ref=e292]
+            - button "Map marker" [ref=e296] [cursor=pointer]:
+              - img [ref=e298]
+            - button "Map marker" [ref=e302] [cursor=pointer]:
+              - img [ref=e304]
+            - button "Map marker" [ref=e308] [cursor=pointer]:
+              - img [ref=e310]
+            - button "Map marker" [ref=e270] [cursor=pointer]:
+              - img [ref=e272]
+            - button "Map marker" [ref=e274] [cursor=pointer]:
+              - img [ref=e276]
+            - button "Map marker" [ref=e278] [cursor=pointer]:
+              - img [ref=e280]
+            - button "Map marker" [ref=e282] [cursor=pointer]:
+              - img [ref=e284]
+            - button "Map marker" [ref=e286] [cursor=pointer]:
+              - img [ref=e288]
+          - group [ref=e314]:
+            - generic "Toggle attribution" [ref=e315] [cursor=pointer]
+            - generic [ref=e316]: OpenStreetMap contributors
+        - generic [ref=e317]:
+          - button "Acercar" [ref=e318] [cursor=pointer]:
+            - img [ref=e319]
+          - button "Alejar" [ref=e320] [cursor=pointer]:
+            - img [ref=e321]
+          - button "Mi ubicacion" [ref=e322] [cursor=pointer]:
+            - img [ref=e323]
+      - complementary "Reportes, empresas y administracion" [ref=e151]:
+        - generic [ref=e152]:
+          - heading "Reportes" [level=2] [ref=e153]:
+            - img [ref=e154]
+            - text: Reportes
+          - generic [ref=e157]:
+            - article [ref=e158]:
+              - generic [ref=e160]:
+                - generic [ref=e161]:
+                  - generic [ref=e162]: Instantaneo
+                  - generic [ref=e163]: No verificado
+                - heading "Hurto reportado cerca de parada" [level=3] [ref=e164]
+                - generic [ref=e165]: Hurto / Centro / Hace 18 min
+              - paragraph [ref=e166]: Reporte inicial del piloto en Centro.
+              - generic [ref=e167]:
+                - generic [ref=e168]: LuzNorte
+                - generic [ref=e169]: Colaborador
+                - generic [ref=e170]: +2 duplicados
+              - generic [ref=e171]:
+                - img [ref=e172]
+                - generic [ref=e175]: en revision
+              - generic "Resumen de votos" [ref=e176]:
+                - button "Votos si" [ref=e177] [cursor=pointer]:
+                  - img [ref=e178]
+                - generic [ref=e180]: "2"
+                - button "Votos no" [ref=e181] [cursor=pointer]:
+                  - img [ref=e182]
+                - generic [ref=e185]: "0"
+                - button "No se" [ref=e186] [cursor=pointer]:
+                  - img [ref=e187]
+                - generic [ref=e190]: "1"
+                - generic [ref=e191]:
+                  - img [ref=e192]
+                  - text: Solo admin
+            - article [ref=e195]:
+              - generic [ref=e197]:
+                - generic [ref=e198]:
+                  - generic [ref=e199]: Oficial
+                  - generic [ref=e200]: Verificado
+                - heading "Intento de atraco confirmado por medio local" [level=3] [ref=e201]
+                - generic [ref=e202]: Alerta / Manga / Ayer
+              - paragraph [ref=e203]: Verificado con una noticia local.
+              - generic [ref=e204]:
+                - generic [ref=e205]: AdminRuta
+                - generic [ref=e206]: Embajador
+              - generic [ref=e207]:
+                - img [ref=e208]
+                - generic [ref=e211]: El Universal / 10 mayo 2026
+              - generic "Resumen de votos" [ref=e212]:
+                - button "Votos si" [ref=e213] [cursor=pointer]:
+                  - img [ref=e214]
+                - generic [ref=e216]: "11"
+                - button "Votos no" [ref=e217] [cursor=pointer]:
+                  - img [ref=e218]
+                - generic [ref=e221]: "1"
+                - button "No se" [ref=e222] [cursor=pointer]:
+                  - img [ref=e223]
+                - generic [ref=e226]: "0"
+                - generic [ref=e227]:
+                  - img [ref=e228]
+                  - text: Solo admin
+            - article [ref=e231]:
+              - generic [ref=e233]:
+                - generic [ref=e234]:
+                  - generic [ref=e235]: Instantaneo
+                  - generic [ref=e236]: Confiable
+                - heading "Zona con poca iluminacion" [level=3] [ref=e237]
+                - generic [ref=e238]: Iluminacion / Getsemani / Hace 1 h
+              - paragraph [ref=e239]: Tramo reportado por usuarios frecuentes.
+              - generic [ref=e240]:
+                - generic [ref=e241]: PatioClaro
+                - generic [ref=e242]: Verificador
+                - generic [ref=e243]: +4 duplicados
+              - generic [ref=e244]:
+                - img [ref=e245]
+                - generic [ref=e248]: fuente no coincide
+              - generic "Resumen de votos" [ref=e249]:
+                - button "Votos si" [ref=e250] [cursor=pointer]:
+                  - img [ref=e251]
+                - generic [ref=e253]: "7"
+                - button "Votos no" [ref=e254] [cursor=pointer]:
+                  - img [ref=e255]
+                - generic [ref=e258]: "1"
+                - button "No se" [ref=e259] [cursor=pointer]:
+                  - img [ref=e260]
+                - generic [ref=e263]: "0"
+                - generic [ref=e264]:
+                  - img [ref=e265]
+                  - text: Solo admin
+            - article [ref=e325]:
+              - generic [ref=e327]:
+                - generic [ref=e328]:
+                  - generic [ref=e329]: Instantaneo
+                  - generic [ref=e330]: No verificado
+                - heading "Reporte desde navegador" [level=3] [ref=e331]
+                - generic [ref=e332]: Hurto / Centro / SQLite
+              - paragraph [ref=e333]: Reporte creado desde la interfaz para verificar botones reales.
+              - generic [ref=e334]:
+                - generic [ref=e335]: Usuario
+                - generic [ref=e336]: Ciudadano
+              - generic [ref=e337]:
+                - img [ref=e338]
+                - generic [ref=e341]: sin fuente aceptada
+              - generic "Resumen de votos" [ref=e342]:
+                - button "Votos si" [ref=e343] [cursor=pointer]:
+                  - img [ref=e344]
+                - generic [ref=e346]: "0"
+                - button "Votos no" [ref=e347] [cursor=pointer]:
+                  - img [ref=e348]
+                - generic [ref=e351]: "0"
+                - button "No se" [ref=e352] [cursor=pointer]:
+                  - img [ref=e353]
+                - generic [ref=e356]: "0"
+                - generic [ref=e357]:
+                  - img [ref=e358]
+                  - text: Solo admin
+            - article [ref=e361]:
+              - generic [ref=e363]:
+                - generic [ref=e364]:
+                  - generic [ref=e365]: Instantaneo
+                  - generic [ref=e366]: No verificado
+                - heading "Prueba de reporte local" [level=3] [ref=e367]
+                - generic [ref=e368]: Hurto / Centro / SQLite
+              - paragraph [ref=e369]: Reporte de prueba sin datos personales
+              - generic [ref=e370]:
+                - generic [ref=e371]: Usuario
+                - generic [ref=e372]: Ciudadano
+                - generic [ref=e373]: +1 duplicados
+              - generic [ref=e374]:
+                - img [ref=e375]
+                - generic [ref=e378]: sin fuente aceptada
+              - generic "Resumen de votos" [ref=e379]:
+                - button "Votos si" [ref=e380] [cursor=pointer]:
+                  - img [ref=e381]
+                - generic [ref=e383]: "0"
+                - button "Votos no" [ref=e384] [cursor=pointer]:
+                  - img [ref=e385]
+                - generic [ref=e388]: "0"
+                - button "No se" [ref=e389] [cursor=pointer]:
+                  - img [ref=e390]
+                - generic [ref=e393]: "0"
+                - generic [ref=e394]:
+                  - img [ref=e395]
+                  - text: Solo admin
+  - alert [ref=e398]

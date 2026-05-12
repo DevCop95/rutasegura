@@ -1,0 +1,43 @@
+from enum import StrEnum
+
+
+class UserType(StrEnum):
+    CITIZEN = "CITIZEN"
+    BUSINESS = "BUSINESS"
+    ADMIN = "ADMIN"
+
+
+class ReportType(StrEnum):
+    INSTANTANEO = "INSTANTANEO"
+    OFICIAL = "OFICIAL"
+
+
+class ReportStatus(StrEnum):
+    NO_VERIFICADO = "NO_VERIFICADO"
+    COMUNITARIAMENTE_CONFIABLE = "COMUNITARIAMENTE_CONFIABLE"
+    VERIFICADO = "VERIFICADO"
+    RECHAZADO = "RECHAZADO"
+    OCULTO = "OCULTO"
+
+
+class VoteValue(StrEnum):
+    SI = "SI"
+    NO = "NO"
+    NO_SE = "NO_SE"
+
+
+class BusinessStatus(StrEnum):
+    BORRADOR = "BORRADOR"
+    PENDIENTE_PAGO = "PENDIENTE_PAGO"
+    PENDIENTE_VERIFICACION = "PENDIENTE_VERIFICACION"
+    APROBADO = "APROBADO"
+    RECHAZADO = "RECHAZADO"
+    SUSPENDIDO = "SUSPENDIDO"
+
+
+class SourceStatus(StrEnum):
+    PENDIENTE = "PENDIENTE"
+    ACEPTADO = "ACEPTADO"
+    RECHAZADO = "RECHAZADO"
+    ERROR = "ERROR"
+
