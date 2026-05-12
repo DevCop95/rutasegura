@@ -805,6 +805,18 @@ nextjs-portal {
   }
 }
 
+.toastBar.womensMode {
+  background: #ff4d94;
+  color: white;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(255, 77, 148, 0.3);
+  border-top: none;
+}
+
+.toggleButton.active svg {
+  color: #ff4d94;
+}
+
 @media (max-width: 560px) {
   .brandText span,
   .navButton:not(.active) {

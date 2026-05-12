@@ -22,6 +22,7 @@ class User(IdMixin, TimestampMixin, Base):
     reports_rejected_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     votes_cast_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     last_login_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    is_womens_mode_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     reports = relationship("Report", back_populates="creator")

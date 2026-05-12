@@ -88,7 +88,7 @@ const demoReports: ReportItem[] = [
     status: "NO_VERIFICADO",
     category: "Hurto",
     zone: "Centro",
-    time: "Hace 18 min",
+    time: "10:15 AM",
     author: "LuzNorte",
     authorRank: "Colaborador",
     children: 2,
@@ -105,7 +105,7 @@ const demoReports: ReportItem[] = [
     status: "VERIFICADO",
     category: "Alerta",
     zone: "Manga",
-    time: "Ayer",
+    time: "08:30 PM",
     author: "AdminRuta",
     authorRank: "Embajador",
     children: 0,
@@ -122,7 +122,7 @@ const demoReports: ReportItem[] = [
     status: "COMUNITARIAMENTE_CONFIABLE",
     category: "Iluminacion",
     zone: "Getsemani",
-    time: "Hace 1 h",
+    time: "11:45 PM",
     author: "PatioClaro",
     authorRank: "Verificador",
     children: 4,
@@ -169,14 +169,30 @@ export default function Dashboard() {
   });
   const [reports, setReports] = useState<ReportItem[]>(demoReports);
   const [businesses, setBusinesses] = useState<BusinessItem[]>(demoBusinesses);
+  const [userVotes, setUserVotes] = useState<Record<string, "SI" | "NO" | "NO_SE">>(() => {
+    if (typeof window === "undefined") return {};
+    const stored = localStorage.getItem("rs_user_votes");
+    return stored ? JSON.parse(stored) : {};
+  });
+  const [voteHistory, setVoteHistory] = useState<Record<string, number>>(() => {
+    if (typeof window === "undefined") return {};
+    const stored = localStorage.getItem("rs_vote_history");
+    return stored ? JSON.parse(stored) : {};
+  });
   const [activeTab, setActiveTab] = useState<"map" | "business" | "admin">("map");
   const [activeRole, setActiveRole] = useState<"CITIZEN" | "BUSINESS" | "ADMIN">("CITIZEN");
   const [authMode, setAuthMode] = useState<"login" | "register" | null>(null);
   const [sourceReportId, setSourceReportId] = useState<string | null>(null);
+  const [showReportForm, setShowReportForm] = useState(false);
   const [showBusinessForm, setShowBusinessForm] = useState(false);
+  const [showAccountModal, setShowAccountModal] = useState(false);
+  const [showWomensModeConfirm, setShowWomensModeConfirm] = useState(false);
+  const [showVoteForm, setShowVoteForm] = useState<{ id: string; type: "report" | "business"; vote: "SI" | "NO" | "NO_SE" } | null>(null);
   const [showReports, setShowReports] = useState(true);
   const [showBusinesses, setShowBusinesses] = useState(true);
   const [showRoute, setShowRoute] = useState(false);
+  const [showWomensMode, setShowWomensMode] = useState(false);
+  const [routeCoordinates, setRouteCoordinates] = useState<[number, number][]>([]);
   const [categoryFilter, setCategoryFilter] = useState("todas");
   const [dateFilter, setDateFilter] = useState("24h");
   const [verificationFilter, setVerificationFilter] = useState("todos");
@@ -284,6 +300,16 @@ export default function Dashboard() {
     }
   }
 
+  function handleLogout() {
+    setToken(null);
+    setUser(null);
+    localStorage.removeItem("rs_token");
+    localStorage.removeItem("rs_user");
+    setToast("Sesion cerrada correctamente.");
+    setShowAccountModal(false);
+    setActiveTab("map");
+  }
+
   async function createReport(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!token) {
@@ -309,6 +335,7 @@ export default function Dashboard() {
       });
       setReports((current) => [mapApiReport(report), ...current]);
       event.currentTarget.reset();
+      setShowReportForm(false);
       setToast("Reporte creado y guardado en SQLite.");
     } catch (error) {
       setToast(error instanceof Error ? error.message : "No se pudo crear el reporte.");
@@ -381,61 +408,93 @@ export default function Dashboard() {
   }
 
   async function voteReport(reportId: string, vote: "SI" | "NO" | "NO_SE") {
+    if (!token) return;
+    const currentVote = userVotes[reportId];
+    if (currentVote === vote) return;
+
+    const changes = voteHistory[reportId] || 0;
+    if (changes >= 2) {
+      setShowVoteForm({ id: reportId, type: "report", vote });
+      return;
+    }
+
     const field = vote === "SI" ? "yes" : vote === "NO" ? "no" : "unknown";
-    if (!reportId.startsWith("demo-") && token) {
+    const oldField = currentVote === "SI" ? "yes" : currentVote === "NO" ? "no" : currentVote === "NO_SE" ? "unknown" : null;
+
+    if (!reportId.startsWith("demo-")) {
       try {
         const summary = await api<{ yes: number; no: number; unknown: number; score: string }>(
           `/api/v1/reports/${reportId}/votes`,
-          {
-            method: "POST",
-            body: JSON.stringify({ vote_value: vote }),
-          },
+          { method: "POST", body: JSON.stringify({ vote_value: vote }) },
         );
-        setReports((current) =>
-          current.map((report) =>
-            report.id === reportId
-              ? { ...report, votes: { yes: summary.yes, no: summary.no, unknown: summary.unknown } }
-              : report,
-          ),
-        );
-        setToast("Voto guardado en SQLite.");
-        return;
-      } catch (error) {
-        setToast(error instanceof Error ? error.message : "No se pudo votar.");
-        return;
+        setReports((curr) => curr.map((r) => r.id === reportId ? { ...r, votes: { yes: summary.yes, no: summary.no, unknown: summary.unknown } } : r));
+      } catch {
+        setToast("Error al sincronizar voto.");
       }
+    } else {
+      setReports((curr) => curr.map((r) => {
+        if (r.id !== reportId) return r;
+        const newVotes = { ...r.votes, [field]: r.votes[field] + 1 };
+        if (oldField) newVotes[oldField] = Math.max(0, newVotes[oldField] - 1);
+        return { ...r, votes: newVotes };
+      }));
     }
-    setReports((current) =>
-      current.map((report) =>
-        report.id === reportId ? { ...report, votes: { ...report.votes, [field]: report.votes[field] + 1 } } : report,
-      ),
-    );
-    setToast("Voto aplicado localmente.");
+
+    const newVotes = { ...userVotes, [reportId]: vote };
+    const newHistory = { ...voteHistory, [reportId]: changes + 1 };
+    setUserVotes(newVotes);
+    setVoteHistory(newHistory);
+    localStorage.setItem("rs_user_votes", JSON.stringify(newVotes));
+    localStorage.setItem("rs_vote_history", JSON.stringify(newHistory));
+    
+    if (changes === 1) setToast("Voto cambiado. Ultimo cambio permitido antes de revision.");
+    else setToast("Voto registrado.");
   }
 
   async function voteBusiness(businessId: string, vote: "SI" | "NO" | "NO_SE") {
-    if (!businessId.startsWith("demo-") && token) {
+    if (!token) return;
+    const currentVote = userVotes[businessId];
+    if (currentVote === vote) return;
+
+    const changes = voteHistory[businessId] || 0;
+    if (changes >= 2) {
+      setShowVoteForm({ id: businessId, type: "business", vote });
+      return;
+    }
+
+    if (!businessId.startsWith("demo-")) {
       try {
         const business = await api<Record<string, unknown>>(`/api/v1/businesses/${businessId}/votes`, {
           method: "POST",
           body: JSON.stringify({ vote_value: vote }),
         });
         setBusinesses((current) => current.map((item) => (item.id === businessId ? mapApiBusiness(business) : item)));
-        setToast("Voto de empresa guardado.");
-        return;
-      } catch (error) {
-        setToast(error instanceof Error ? error.message : "No se pudo votar la empresa.");
-        return;
+      } catch {
+        setToast("Error al votar empresa.");
       }
+    } else {
+      setBusinesses((current) =>
+        current.map((b) => {
+          if (b.id !== businessId) return b;
+          let diff = 0;
+          if (vote === "SI") diff = 1;
+          else if (vote === "NO") diff = -1;
+          if (currentVote === "SI") diff -= 1;
+          else if (currentVote === "NO") diff += 1;
+          return { ...b, score: b.score + diff };
+        }),
+      );
     }
-    setBusinesses((current) =>
-      current.map((business) =>
-        business.id === businessId
-          ? { ...business, score: business.score + (vote === "SI" ? 1 : vote === "NO" ? -1 : 0) }
-          : business,
-      ),
-    );
-    setToast("Voto de empresa aplicado localmente.");
+
+    const newVotes = { ...userVotes, [businessId]: vote };
+    const newHistory = { ...voteHistory, [businessId]: changes + 1 };
+    setUserVotes(newVotes);
+    setVoteHistory(newHistory);
+    localStorage.setItem("rs_user_votes", JSON.stringify(newVotes));
+    localStorage.setItem("rs_vote_history", JSON.stringify(newHistory));
+
+    if (changes === 1) setToast("Voto cambiado. Ultimo cambio permitido antes de revision.");
+    else setToast("Voto de empresa registrado.");
   }
 
   async function startCampaign(businessId: string) {
@@ -463,9 +522,81 @@ export default function Dashboard() {
     setToast("Campana simulada. Stripe real queda pendiente.");
   }
 
-  function runRoute() {
-    setShowRoute(true);
-    setToast(`Ruta activa: ${routeFrom || "origen"} a ${routeTo || "destino"}.`);
+  async function fetchRoute(fromLngLat: [number, number], toLngLat: [number, number]) {
+    try {
+      // Usamos Mapbox para trafico en tiempo real y cierres de calles. 
+      const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
+      const url = `https://api.mapbox.com/directions/v5/mapbox/driving-traffic/${fromLngLat.join(",")};${toLngLat.join(",")}?overview=full&geometries=geojson&access_token=${MAPBOX_TOKEN}`;
+      
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      if (data.code === "Ok" && data.routes?.[0]?.geometry?.coordinates) {
+        setRouteCoordinates(data.routes[0].geometry.coordinates);
+      } else {
+        throw new Error("No se encontro ruta");
+      }
+    } catch {
+      setToast("Error al conectar con Mapbox. Usando respaldo de calles estaticas.");
+      // Respaldo simple con OSRM si falla Mapbox
+      const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${fromLngLat.join(",")};${toLngLat.join(",")}?overview=full&geometries=geojson`;
+      const res = await fetch(osrmUrl);
+      const d = await res.json();
+      if (d.code === "Ok") setRouteCoordinates(d.routes[0].geometry.coordinates);
+    }
+  }
+
+  function toggleRoute() {
+    const nextState = !showRoute;
+    setShowRoute(nextState);
+    if (nextState) {
+      void fetchRoute([-75.5488, 10.4262], [-75.5362, 10.4109]);
+      setToast("Ruta Segura: Calculando trayecto optimo por calles reales.");
+    } else {
+      setRouteCoordinates([]);
+      setShowWomensMode(false);
+      setCategoryFilter("todas");
+      setToast("Mapa estandar: Ruta desactivada.");
+    }
+  }
+
+  function toggleWomensMode() {
+    if (showWomensMode) {
+      // Desactivar directamente
+      setShowWomensMode(false);
+      setCategoryFilter("todas");
+      setToast("Modo estandar: Manteniendo ruta pero con todos los incidentes.");
+      return;
+    }
+    
+    // Al activar, pedir confirmacion de identidad
+    setShowWomensModeConfirm(true);
+  }
+
+  async function confirmWomensMode() {
+    setShowWomensModeConfirm(false);
+    
+    // Si el usuario esta logueado, guardamos la verificacion en la BD
+    if (token && user) {
+      try {
+        const updatedUser = await api<UserPublic>(`/api/v1/users/${user.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ is_womens_mode_verified: true }),
+        });
+        setUser(updatedUser);
+        localStorage.setItem("rs_user", JSON.stringify(updatedUser));
+      } catch {
+        setToast("Error al guardar verificacion en tu perfil.");
+      }
+    }
+
+    if (!showRoute) {
+      setShowRoute(true);
+      void fetchRoute([-75.5488, 10.4262], [-75.5362, 10.4109]);
+    }
+    setShowWomensMode(true);
+    setCategoryFilter("acoso");
+    setToast("MODO MUJERES ACTIVO: Filtrando por iluminacion y acoso en tu ruta.");
   }
 
   function adminAction(action: "merge" | "hide" | "approve" | "fake") {
@@ -498,6 +629,13 @@ export default function Dashboard() {
   function pushAudit(message: string) {
     setAuditLog((current) => [message, ...current]);
     setToast(message);
+  }
+
+  function submitVoteRequest(reason: string) {
+    if (!showVoteForm) return;
+    pushAudit(`Solicitud de cambio de voto (${showVoteForm.type}): ${reason}`);
+    setToast("Solicitud enviada al administrador.");
+    setShowVoteForm(null);
   }
 
   useEffect(() => {
@@ -545,87 +683,20 @@ export default function Dashboard() {
           <button className="iconButton" title="Notificaciones" aria-label="Notificaciones" onClick={() => setToast("Tienes 3 pendientes de validacion.")}>
             <Bell size={18} />
           </button>
-          <button className="primaryButton" type="button" onClick={() => document.getElementById("title")?.focus()}>
+          <button className="iconButton" title="Mi Cuenta" aria-label="Mi Cuenta" onClick={() => setShowAccountModal(true)}>
+            <User size={18} />
+          </button>
+          <button className="primaryButton" type="button" onClick={() => setShowReportForm(true)}>
             <Plus size={18} />
             Reportar
           </button>
         </nav>
       </header>
 
-      <div className="toastBar" role="status">{toast}</div>
+      <div className={`toastBar ${showRoute ? "womensMode" : ""}`} role="status">{toast}</div>
 
       <section className="mainGrid">
         <aside className="sidebar" aria-label="Cuenta, filtros y notificaciones">
-          <section className="panelBlock">
-            <h2 className="sectionTitle">Cuenta</h2>
-            <div className="authGrid">
-              <button className="secondaryButton" type="button" onClick={() => setAuthMode("login")}>
-                <LogIn size={17} />
-                Login
-              </button>
-              <button className="secondaryButton" type="button" onClick={() => setAuthMode("register")}>
-                <UserPlus size={17} />
-                Registro
-              </button>
-            </div>
-            <div className="roleSwitch" aria-label="Rol de registro">
-              {(["CITIZEN", "BUSINESS", "ADMIN"] as const).map((role) => (
-                <button key={role} className={activeRole === role ? "active" : ""} type="button" onClick={() => setActiveRole(role)}>
-                  {roleLabel(role)}
-                </button>
-              ))}
-            </div>
-          </section>
-
-          <section className="profilePanel" aria-label="Perfil publico">
-            <div className="avatar" aria-hidden="true">
-              <User size={22} />
-            </div>
-            <div className="profileText">
-              <strong>{profile.alias}</strong>
-              <span>{profile.role}</span>
-            </div>
-            <span className={rankClass(profile.rank)}>{profile.rank}</span>
-            <div className="profileStats">
-              <div><strong>{profile.reputation}</strong><span>reputacion</span></div>
-              <div><strong>{profile.verified}</strong><span>verificados</span></div>
-              <div><strong>{profile.unverified}</strong><span>no verificados</span></div>
-              <div><strong>{profile.rejected}</strong><span>rechazados</span></div>
-            </div>
-          </section>
-
-          <section className="panelBlock">
-            <h2 className="sectionTitle"><Plus size={15} /> Nuevo reporte</h2>
-            <form className="fieldStack compact" onSubmit={createReport}>
-              <div className="field">
-                <label htmlFor="category">Categoria</label>
-                <select id="category" name="category" defaultValue="Hurto">
-                  <option>Hurto</option>
-                  <option>Acoso</option>
-                  <option>Iluminacion</option>
-                  <option>Alerta</option>
-                </select>
-              </div>
-              <div className="field">
-                <label htmlFor="title">Titulo</label>
-                <input id="title" name="title" placeholder="Ej. Hurto cerca de parada" required minLength={5} />
-              </div>
-              <div className="field">
-                <label htmlFor="description">Descripcion</label>
-                <textarea id="description" name="description" placeholder="Sin nombres, placas ni datos personales." required minLength={10} />
-              </div>
-              <div className="field">
-                <label htmlFor="zone">Zona</label>
-                <input id="zone" name="zone" placeholder="Centro, Manga, Getsemani" />
-              </div>
-              <div className="coordinateGrid">
-                <input name="lat" aria-label="Latitud" defaultValue="10.4236" />
-                <input name="lng" aria-label="Longitud" defaultValue="-75.5478" />
-              </div>
-              <button className="primaryButton fullButton" type="submit">Crear reporte</button>
-            </form>
-          </section>
-
           <section className="panelBlock">
             <h2 className="sectionTitle"><Filter size={15} /> Filtros</h2>
             <div className="fieldStack compact">
@@ -670,9 +741,14 @@ export default function Dashboard() {
                 <input id="to" value={routeTo} onChange={(event) => setRouteTo(event.target.value)} placeholder="Destino frecuente" />
               </div>
               <div className="toggleRow">
-                <button className={`toggleButton ${showRoute ? "active" : ""}`} type="button" onClick={runRoute}>
+                <button className={`toggleButton ${showRoute ? "active" : ""}`} type="button" onClick={toggleRoute}>
+                  <Navigation size={16} /> Trazar Ruta
+                </button>
+                <button className={`toggleButton ${showWomensMode ? "active" : ""}`} type="button" onClick={toggleWomensMode}>
                   <Heart size={16} /> Modo mujeres
                 </button>
+              </div>
+              <div className="toggleRow">
                 <button className="toggleButton" type="button" onClick={() => setToast("Capas: incidentes, puntos seguros e historico.")}>
                   <Layers size={16} /> Capas
                 </button>
@@ -680,16 +756,7 @@ export default function Dashboard() {
             </div>
           </section>
 
-          <section className="panelBlock">
-            <h2 className="sectionTitle"><BellRing size={15} /> Pendientes</h2>
-            <div className="notificationList">
-              {["Valida una empresa cercana", "Aporta fuente para un reporte", "Revisa posible duplicado"].map((item) => (
-                <button className="notificationItem" key={item} type="button" onClick={() => setToast(item)}>
-                  {item}
-                </button>
-              ))}
-            </div>
-          </section>
+
         </aside>
 
         <section className="mapArea" aria-label="Mapa de reportes y puntos seguros">
@@ -710,6 +777,7 @@ export default function Dashboard() {
             showReports={showReports}
             showBusinesses={showBusinesses}
             showRoute={showRoute}
+            routeCoordinates={routeCoordinates}
             onSelectReport={(id) => setToast(reports.find((report) => report.id === id)?.title ?? "Reporte seleccionado")}
           />
         </section>
@@ -742,12 +810,18 @@ export default function Dashboard() {
                       <span className={sourceClass(report.source.status)}>{report.source.label}</span>
                     </div>
                     <div className="voteRow" aria-label="Resumen de votos">
-                      <button className="voteButton yes" type="button" title="Votos si" onClick={() => voteReport(report.id, "SI")}><Check size={16} /></button>
-                      <span className="reportMeta">{report.votes.yes}</span>
-                      <button className="voteButton no" type="button" title="Votos no" onClick={() => voteReport(report.id, "NO")}><X size={16} /></button>
-                      <span className="reportMeta">{report.votes.no}</span>
-                      <button className="voteButton unknown" type="button" title="No se" onClick={() => voteReport(report.id, "NO_SE")}><HelpCircle size={16} /></button>
-                      <span className="reportMeta">{report.votes.unknown}</span>
+                      {token ? (
+                        <>
+                          <button className={`voteButton yes ${userVotes[report.id] === "SI" ? "active" : ""}`} type="button" title="Votos si" onClick={() => voteReport(report.id, "SI")}><Check size={16} /></button>
+                          <span className="reportMeta">{report.votes.yes}</span>
+                          <button className={`voteButton no ${userVotes[report.id] === "NO" ? "active" : ""}`} type="button" title="Votos no" onClick={() => voteReport(report.id, "NO")}><X size={16} /></button>
+                          <span className="reportMeta">{report.votes.no}</span>
+                          <button className={`voteButton unknown ${userVotes[report.id] === "NO_SE" ? "active" : ""}`} type="button" title="No se" onClick={() => voteReport(report.id, "NO_SE")}><HelpCircle size={16} /></button>
+                          <span className="reportMeta">{report.votes.unknown}</span>
+                        </>
+                      ) : (
+                        <div className="guestVoteNote">Inicia sesion para votar</div>
+                      )}
                       {isAdmin ? (
                         <button className="linkButton" type="button" onClick={() => setSourceReportId(report.id)}>
                           <Newspaper size={16} /> Gestionar noticia
@@ -780,9 +854,15 @@ export default function Dashboard() {
                     <span className={business.status === "APROBADO" ? "status trusted" : "status pending"}>{business.status === "APROBADO" ? "Seguro" : "Pendiente"}</span>
                     <div className="sourceRow"><CreditCard size={15} /><span>{business.label}</span></div>
                     <div className="voteRow">
-                      <button className="voteButton yes" type="button" title="Es seguro" onClick={() => voteBusiness(business.id, "SI")}><Check size={16} /></button>
-                      <button className="voteButton no" type="button" title="No es seguro" onClick={() => voteBusiness(business.id, "NO")}><X size={16} /></button>
-                      <button className="voteButton unknown" type="button" title="No se" onClick={() => voteBusiness(business.id, "NO_SE")}><HelpCircle size={16} /></button>
+                      {token ? (
+                        <>
+                          <button className={`voteButton yes ${userVotes[business.id] === "SI" ? "active" : ""}`} type="button" title="Es seguro" onClick={() => voteBusiness(business.id, "SI")}><Check size={16} /></button>
+                          <button className={`voteButton no ${userVotes[business.id] === "NO" ? "active" : ""}`} type="button" title="No es seguro" onClick={() => voteBusiness(business.id, "NO")}><X size={16} /></button>
+                          <button className={`voteButton unknown ${userVotes[business.id] === "NO_SE" ? "active" : ""}`} type="button" title="No se" onClick={() => voteBusiness(business.id, "NO_SE")}><HelpCircle size={16} /></button>
+                        </>
+                      ) : (
+                        <div className="guestVoteNote">Inicia sesion para votar</div>
+                      )}
                       <button className="linkButton" type="button" onClick={() => startCampaign(business.id)}>
                         <CreditCard size={16} /> Contratar campana
                       </button>
@@ -832,6 +912,10 @@ export default function Dashboard() {
         </Modal>
       ) : null}
 
+      {showVoteForm ? (
+        <VoteForm data={showVoteForm} onSubmit={submitVoteRequest} onClose={() => setShowVoteForm(null)} />
+      ) : null}
+
       {showBusinessForm ? (
         <Modal title="Registrar empresa" onClose={() => setShowBusinessForm(false)}>
           <form className="fieldStack" onSubmit={createBusiness}>
@@ -847,7 +931,142 @@ export default function Dashboard() {
           </form>
         </Modal>
       ) : null}
+
+      {showAccountModal ? (
+        <Modal title="Mi Cuenta" onClose={() => setShowAccountModal(false)}>
+          <section className="profilePanel" style={{ borderBottom: "none" }} aria-label="Perfil publico">
+            <div className="avatar" aria-hidden="true">
+              <User size={22} />
+            </div>
+            <div className="profileText">
+              <strong>{profile.alias}</strong>
+              <span>{profile.role}</span>
+            </div>
+            <span className={rankClass(profile.rank)}>{profile.rank}</span>
+            {token ? (
+              <div className="profileStats">
+                <div><strong>{profile.reputation}</strong><span>reputacion</span></div>
+                <div><strong>{profile.verified}</strong><span>verificados</span></div>
+                <div><strong>{profile.unverified}</strong><span>no verificados</span></div>
+                <div><strong>{profile.rejected}</strong><span>rechazados</span></div>
+              </div>
+            ) : null}
+
+            {token ? (
+              <section className="panelBlock" style={{ borderBottom: "none", marginTop: "16px", padding: 0 }}>
+                <h2 className="sectionTitle"><BellRing size={15} /> Pendientes</h2>
+                <div className="notificationList">
+                  {["Valida una empresa cercana", "Aporta fuente para un reporte", "Revisa posible duplicado"].map((item) => (
+                    <button className="notificationItem" key={item} type="button" onClick={() => setToast(item)}>
+                      {item}
+                    </button>
+                  ))}
+                </div>
+              </section>
+            ) : null}
+          </section>
+
+          <section className="panelBlock" style={{ borderBottom: "none", marginTop: "16px" }}>
+            <h2 className="sectionTitle">Gestionar Cuenta</h2>
+            {!token ? (
+              <>
+                <div className="authGrid">
+                  <button className="secondaryButton" type="button" onClick={() => { setAuthMode("login"); setShowAccountModal(false); }}>
+                    <LogIn size={17} />
+                    Login
+                  </button>
+                  <button className="secondaryButton" type="button" onClick={() => { setAuthMode("register"); setShowAccountModal(false); }}>
+                    <UserPlus size={17} />
+                    Registro
+                  </button>
+                </div>
+                <div className="roleSwitch" aria-label="Rol de registro">
+                  {(["CITIZEN", "BUSINESS", "ADMIN"] as const).map((role) => (
+                    <button key={role} className={activeRole === role ? "active" : ""} type="button" onClick={() => setActiveRole(role)}>
+                      {roleLabel(role)}
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <button className="secondaryButton fullButton" type="button" onClick={handleLogout} style={{ color: "#d93025" }}>
+                <LogIn size={17} style={{ transform: "rotate(180deg)" }} />
+                Cerrar sesion
+              </button>
+            )}
+          </section>
+        </Modal>
+      ) : null}
+
+      {showReportForm ? (
+        <Modal title="Nuevo reporte" onClose={() => setShowReportForm(false)}>
+          <form className="fieldStack" onSubmit={createReport}>
+            <div className="field">
+              <label htmlFor="category">Categoria</label>
+              <select id="category" name="category" defaultValue="Hurto">
+                <option>Hurto</option>
+                <option>Acoso</option>
+                <option>Iluminacion</option>
+                <option>Alerta</option>
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor="title">Titulo</label>
+              <input id="title" name="title" placeholder="Ej. Hurto cerca de parada" required minLength={5} />
+            </div>
+            <div className="field">
+              <label htmlFor="description">Descripcion</label>
+              <textarea id="description" name="description" placeholder="Sin nombres, placas ni datos personales." required minLength={10} />
+            </div>
+            <div className="field">
+              <label htmlFor="zone">Zona</label>
+              <input id="zone" name="zone" placeholder="Centro, Manga, Getsemani" />
+            </div>
+            <div className="coordinateGrid">
+              <input name="lat" aria-label="Latitud" defaultValue="10.4236" />
+              <input name="lng" aria-label="Longitud" defaultValue="-75.5478" />
+            </div>
+            <button className="primaryButton fullButton" type="submit">Crear reporte</button>
+          </form>
+        </Modal>
+      ) : null}
+
+      {showWomensModeConfirm ? (
+        <Modal title="Confirmar Identidad" onClose={() => setShowWomensModeConfirm(false)}>
+          <div className="fieldStack">
+            <p className="subtleText" style={{ fontSize: "1rem", lineHeight: "1.5" }}>
+              Esta funcion esta diseñada para priorizar la seguridad de las mujeres mediante el filtrado de zonas de acoso y falta de iluminacion.
+            </p>
+            <strong style={{ textAlign: "center", display: "block", margin: "16px 0", color: "#ff4d94", fontSize: "1.1rem" }}>
+              ¿Confirmas que eres mujer o viajas en un grupo de mujeres?
+            </strong>
+            <div className="authGrid">
+              <button className="primaryButton fullButton" type="button" onClick={confirmWomensMode} style={{ background: "#ff4d94" }}>
+                Si, confirmar
+              </button>
+              <button className="secondaryButton fullButton" type="button" onClick={() => setShowWomensModeConfirm(false)}>
+                No, cancelar
+              </button>
+            </div>
+          </div>
+        </Modal>
+      ) : null}
     </main>
+  );
+}
+
+function VoteForm({ data, onSubmit, onClose }: { data: { id: string; type: "report" | "business"; vote: "SI" | "NO" | "NO_SE" }; onSubmit: (reason: string) => void; onClose: () => void }) {
+  return (
+    <Modal title="Solicitud de cambio de voto" onClose={onClose}>
+      <form className="fieldStack" onSubmit={(e) => { e.preventDefault(); onSubmit(new FormData(e.currentTarget).get("reason") as string); }}>
+        <p className="subtleText">Has superado el limite de cambios permitidos para este item. Para realizar un nuevo cambio, por favor explica el motivo para revision del administrador.</p>
+        <div className="field">
+          <label htmlFor="voteReason">Motivo del cambio</label>
+          <textarea id="voteReason" name="reason" placeholder="Explica por que deseas cambiar tu voto nuevamente..." required minLength={10} />
+        </div>
+        <button className="primaryButton fullButton" type="submit">Enviar solicitud</button>
+      </form>
+    </Modal>
   );
 }
 
@@ -869,6 +1088,9 @@ function Modal({ title, children, onClose }: { title: string; children: React.Re
 }
 
 function mapApiReport(report: Record<string, unknown>): ReportItem {
+  const date = report.occurred_at ? new Date(String(report.occurred_at)) : new Date();
+  const timeStr = date.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", hour12: true });
+
   return {
     id: String(report.id),
     title: String(report.title),
@@ -877,7 +1099,7 @@ function mapApiReport(report: Record<string, unknown>): ReportItem {
     status: String(report.status),
     category: String(report.incident_category),
     zone: String(report.neighborhood ?? "Cartagena"),
-    time: "SQLite",
+    time: timeStr,
     author: "Usuario",
     authorRank: "Ciudadano",
     children: Number(report.duplicate_group_count ?? 0),

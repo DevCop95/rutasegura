@@ -14,6 +14,7 @@ type MapShellProps = {
   showReports: boolean;
   showBusinesses: boolean;
   showRoute: boolean;
+  routeCoordinates?: [number, number][];
   onSelectReport: (id: string) => void;
 };
 

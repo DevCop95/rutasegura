@@ -19,10 +19,12 @@ class UserPublic(BaseModel):
     reports_unverified_count: int
     reports_rejected_count: int
     votes_cast_count: int
+    is_womens_mode_verified: bool
     created_at: datetime
 
 
 class UserUpdate(BaseModel):
     alias: str | None = Field(default=None, min_length=3, max_length=80)
     photo_url: str | None = Field(default=None, max_length=500)
+    is_womens_mode_verified: bool | None = Field(default=None)
 

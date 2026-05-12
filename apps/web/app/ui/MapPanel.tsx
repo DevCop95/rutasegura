@@ -36,15 +36,9 @@ type MapPanelProps = {
   showReports: boolean;
   showBusinesses: boolean;
   showRoute: boolean;
+  routeCoordinates?: [number, number][];
   onSelectReport: (id: string) => void;
 };
-
-const demoRoute: [number, number][] = [
-  [-75.5488, 10.4262],
-  [-75.5451, 10.4222],
-  [-75.5418, 10.4182],
-  [-75.5362, 10.4109],
-];
 
 const CARTAGENA_CENTER: [number, number] = [-75.535, 10.405];
 const CARTAGENA_BOUNDS: [[number, number], [number, number]] = [
@@ -58,6 +52,7 @@ export default function MapPanel({
   showReports,
   showBusinesses,
   showRoute,
+  routeCoordinates,
   onSelectReport,
 }: MapPanelProps) {
   return (
@@ -74,7 +69,7 @@ export default function MapPanel({
     >
       <MapControls allowedBounds={CARTAGENA_BOUNDS} />
       <MapBoundary bounds={CARTAGENA_BOUNDS} />
-      {showRoute ? <MapRoute coordinates={demoRoute} color="#255c99" /> : null}
+      {showRoute && routeCoordinates ? <MapRoute coordinates={routeCoordinates} color="#255c99" /> : null}
 
       {showReports
         ? reports.map((report) => (
