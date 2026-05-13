@@ -33,6 +33,7 @@ def create_report(payload: ReportCreate, current_user: CurrentUser, db: DbSessio
         lng=payload.lng,
         city=payload.city,
         neighborhood=payload.neighborhood,
+        is_womens_mode_relevant=payload.is_womens_mode_relevant,
     )
     db.add(report)
     if parent_id is not None:
@@ -50,11 +51,17 @@ def list_reports(
     db: DbSession,
     city: str = Query(default="Cartagena"),
     status_filter: str | None = Query(default=None, alias="status"),
+    neighborhood: str | None = Query(default=None),
+    womens_mode: bool | None = Query(default=None),
     limit: int = Query(default=100, le=250),
 ) -> list[ReportPublic]:
     query = select(Report).where(Report.city == city).order_by(Report.occurred_at.desc()).limit(limit)
     if status_filter is not None:
         query = query.where(Report.status == status_filter)
+    if neighborhood is not None:
+        query = query.where(Report.neighborhood == neighborhood)
+    if womens_mode is True:
+        query = query.where(Report.is_womens_mode_relevant.is_(True))
 
     reports = db.scalars(query).all()
     return [ReportPublic.model_validate(report) for report in reports]

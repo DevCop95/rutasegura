@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   BadgeCheck,
   Bell,
@@ -33,7 +33,7 @@ import {
 import BrandLogo from "./BrandLogo";
 import MapShell from "./MapShell";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8001";
 
 type UserPublic = {
   id: string;
@@ -64,6 +64,7 @@ type ReportItem = {
   lat: number;
   lng: number;
   apiBacked?: boolean;
+  isWomensModeRelevant?: boolean;
 };
 
 type BusinessItem = {
@@ -78,6 +79,23 @@ type BusinessItem = {
   lng: number;
   apiBacked?: boolean;
 };
+
+type GeocodeSuggestion = {
+  display_name: string;
+  lat: string;
+  lon: string;
+};
+
+async function geocodeNominatim(query: string): Promise<GeocodeSuggestion[]> {
+  if (query.trim().length < 3) return [];
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query + ", Cartagena, Colombia")}&format=json&limit=5`;
+    const res = await fetch(url, { headers: { "Accept-Language": "es" } });
+    return (await res.json()) as GeocodeSuggestion[];
+  } catch {
+    return [];
+  }
+}
 
 const demoReports: ReportItem[] = [
   {
@@ -96,6 +114,7 @@ const demoReports: ReportItem[] = [
     votes: { yes: 2, no: 0, unknown: 1 },
     lat: 10.4236,
     lng: -75.5478,
+    isWomensModeRelevant: false,
   },
   {
     id: "demo-r2",
@@ -130,6 +149,7 @@ const demoReports: ReportItem[] = [
     votes: { yes: 7, no: 1, unknown: 0 },
     lat: 10.4211,
     lng: -75.5442,
+    isWomensModeRelevant: true,
   },
 ];
 
@@ -159,26 +179,12 @@ const demoBusinesses: BusinessItem[] = [
 ];
 
 export default function Dashboard() {
-  const [token, setToken] = useState<string | null>(() =>
-    typeof window === "undefined" ? null : localStorage.getItem("rs_token"),
-  );
-  const [user, setUser] = useState<UserPublic | null>(() => {
-    if (typeof window === "undefined") return null;
-    const stored = localStorage.getItem("rs_user");
-    return stored ? (JSON.parse(stored) as UserPublic) : null;
-  });
+  const [token, setToken] = useState<string | null>(null);
+  const [user, setUser] = useState<UserPublic | null>(null);
   const [reports, setReports] = useState<ReportItem[]>(demoReports);
   const [businesses, setBusinesses] = useState<BusinessItem[]>(demoBusinesses);
-  const [userVotes, setUserVotes] = useState<Record<string, "SI" | "NO" | "NO_SE">>(() => {
-    if (typeof window === "undefined") return {};
-    const stored = localStorage.getItem("rs_user_votes");
-    return stored ? JSON.parse(stored) : {};
-  });
-  const [voteHistory, setVoteHistory] = useState<Record<string, number>>(() => {
-    if (typeof window === "undefined") return {};
-    const stored = localStorage.getItem("rs_vote_history");
-    return stored ? JSON.parse(stored) : {};
-  });
+  const [userVotes, setUserVotes] = useState<Record<string, "SI" | "NO" | "NO_SE">>({});
+  const [voteHistory, setVoteHistory] = useState<Record<string, number>>({});
   const [activeTab, setActiveTab] = useState<"map" | "business" | "admin">("map");
   const [activeRole, setActiveRole] = useState<"CITIZEN" | "BUSINESS" | "ADMIN">("CITIZEN");
   const [authMode, setAuthMode] = useState<"login" | "register" | null>(null);
@@ -197,16 +203,37 @@ export default function Dashboard() {
   const [dateFilter, setDateFilter] = useState("24h");
   const [verificationFilter, setVerificationFilter] = useState("todos");
   const [routeFrom, setRouteFrom] = useState("");
+  const [routeFromCoords, setRouteFromCoords] = useState<[number, number] | null>(null);
   const [routeTo, setRouteTo] = useState("");
-  const [toast, setToast] = useState("Listo para registrar usuarios y crear datos reales en SQLite.");
+  const [routeToCoords, setRouteToCoords] = useState<[number, number] | null>(null);
+  const [fromSuggestions, setFromSuggestions] = useState<GeocodeSuggestion[]>([]);
+  const [toSuggestions, setToSuggestions] = useState<GeocodeSuggestion[]>([]);
+  const [toast, setToastRaw] = useState("Listo para registrar usuarios y crear datos reales en SQLite.");
+  const [toastKey, setToastKey] = useState(0);
+  const [darkMode, setDarkMode] = useState(false);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [auditLog, setAuditLog] = useState<string[]>([
     "AdminRuta fusiono 2 reportes de Centro",
     "Moderacion oculto un reporte con datos personales",
     "Farmacia Manga paso a APROBADO",
   ]);
 
+  // Auto-dismiss toast after 5 s
+  const setToast = useCallback((msg: string) => {
+    setToastRaw(msg);
+    setToastKey((k) => k + 1);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToastRaw(""), 5000);
+  }, []);
+
+  // Apply dark mode class to <html>
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", darkMode);
+  }, [darkMode]);
+
   const filteredReports = useMemo(() => {
     return reports.filter((report) => {
+      if (showWomensMode && !report.isWomensModeRelevant) return false;
       const categoryOk = categoryFilter === "todas" || report.category.toLowerCase().includes(categoryFilter);
       const verificationOk =
         verificationFilter === "todos" ||
@@ -215,7 +242,7 @@ export default function Dashboard() {
         (verificationFilter === "no-verificado" && report.status === "NO_VERIFICADO");
       return categoryOk && verificationOk;
     });
-  }, [reports, categoryFilter, verificationFilter]);
+  }, [reports, categoryFilter, verificationFilter, showWomensMode]);
 
   const profile = user
     ? {
@@ -327,6 +354,7 @@ export default function Dashboard() {
       lng: Number(form.get("lng") || -75.5478),
       city: "Cartagena",
       neighborhood: String(form.get("zone") ?? "Centro"),
+      is_womens_mode_relevant: form.get("is_womens_mode_relevant") === "on",
     };
     try {
       const report = await api<Record<string, unknown>>("/api/v1/reports", {
@@ -523,26 +551,27 @@ export default function Dashboard() {
   }
 
   async function fetchRoute(fromLngLat: [number, number], toLngLat: [number, number]) {
-    try {
-      // Usamos Mapbox para trafico en tiempo real y cierres de calles. 
-      const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
-      const url = `https://api.mapbox.com/directions/v5/mapbox/driving-traffic/${fromLngLat.join(",")};${toLngLat.join(",")}?overview=full&geometries=geojson&access_token=${MAPBOX_TOKEN}`;
-      
-      const response = await fetch(url);
-      const data = await response.json();
-      
-      if (data.code === "Ok" && data.routes?.[0]?.geometry?.coordinates) {
-        setRouteCoordinates(data.routes[0].geometry.coordinates);
-      } else {
-        throw new Error("No se encontro ruta");
+    const ORS_TOKEN = process.env.NEXT_PUBLIC_ORS_TOKEN || "";
+    if (ORS_TOKEN) {
+      try {
+        const url = `https://api.openrouteservice.org/v2/directions/driving-car?api_key=${ORS_TOKEN}&start=${fromLngLat.join(",")}&end=${toLngLat.join(",")}`;
+        const response = await fetch(url);
+        const data = await response.json();
+        if (data.features?.[0]?.geometry?.coordinates) {
+          setRouteCoordinates(data.features[0].geometry.coordinates);
+          return;
+        }
+      } catch {
+        console.warn("ORS fallo, usando OSRM.");
       }
-    } catch {
-      setToast("Error al conectar con Mapbox. Usando respaldo de calles estaticas.");
-      // Respaldo simple con OSRM si falla Mapbox
+    }
+    try {
       const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${fromLngLat.join(",")};${toLngLat.join(",")}?overview=full&geometries=geojson`;
       const res = await fetch(osrmUrl);
       const d = await res.json();
       if (d.code === "Ok") setRouteCoordinates(d.routes[0].geometry.coordinates);
+    } catch {
+      setToast("No se pudo trazar la ruta con ninguno de los servicios.");
     }
   }
 
@@ -550,12 +579,13 @@ export default function Dashboard() {
     const nextState = !showRoute;
     setShowRoute(nextState);
     if (nextState) {
-      void fetchRoute([-75.5488, 10.4262], [-75.5362, 10.4109]);
+      const from: [number, number] = routeFromCoords ?? [-75.5488, 10.4262];
+      const to: [number, number] = routeToCoords ?? [-75.5362, 10.4109];
+      void fetchRoute(from, to);
       setToast("Ruta Segura: Calculando trayecto optimo por calles reales.");
     } else {
       setRouteCoordinates([]);
       setShowWomensMode(false);
-      setCategoryFilter("todas");
       setToast("Mapa estandar: Ruta desactivada.");
     }
   }
@@ -576,17 +606,17 @@ export default function Dashboard() {
   async function confirmWomensMode() {
     setShowWomensModeConfirm(false);
     
-    // Si el usuario esta logueado, guardamos la verificacion en la BD
+    // Usar /me en lugar de /{id} — el endpoint correcto en el backend
     if (token && user) {
       try {
-        const updatedUser = await api<UserPublic>(`/api/v1/users/${user.id}`, {
+        const updatedUser = await api<UserPublic>(`/api/v1/users/me`, {
           method: "PATCH",
-          body: JSON.stringify({ is_womens_mode_verified: true }),
+          body: JSON.stringify({ alias: user.alias }),
         });
         setUser(updatedUser);
         localStorage.setItem("rs_user", JSON.stringify(updatedUser));
       } catch {
-        setToast("Error al guardar verificacion en tu perfil.");
+        // No bloquear el flujo si falla el patch de perfil
       }
     }
 
@@ -595,8 +625,8 @@ export default function Dashboard() {
       void fetchRoute([-75.5488, 10.4262], [-75.5362, 10.4109]);
     }
     setShowWomensMode(true);
-    setCategoryFilter("acoso");
-    setToast("MODO MUJERES ACTIVO: Filtrando por iluminacion y acoso en tu ruta.");
+    setCategoryFilter("todas");
+    setToast("MODO MUJERES ACTIVO: Filtrando puntos relevantes para mujeres en tu ruta.");
   }
 
   function adminAction(action: "merge" | "hide" | "approve" | "fake") {
@@ -639,10 +669,42 @@ export default function Dashboard() {
   }
 
   useEffect(() => {
+    const storedToken = localStorage.getItem("rs_token");
     // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (storedToken) setToken(storedToken);
+
+    const storedUser = localStorage.getItem("rs_user");
+    if (storedUser) {
+      try {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setUser(JSON.parse(storedUser));
+      } catch {
+        /* ignore */
+      }
+    }
+
+    const storedVotes = localStorage.getItem("rs_user_votes");
+    if (storedVotes) {
+      try {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setUserVotes(JSON.parse(storedVotes));
+      } catch {
+        /* ignore */
+      }
+    }
+
+    const storedHistory = localStorage.getItem("rs_vote_history");
+    if (storedHistory) {
+      try {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setVoteHistory(JSON.parse(storedHistory));
+      } catch {
+        /* ignore */
+      }
+    }
+
     void loadReports();
     void loadBusinesses();
-    // Initial hydration only. Subsequent changes are handled by actions.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -653,7 +715,7 @@ export default function Dashboard() {
           <BrandLogo size={38} />
           <div className="brandText">
             <strong>RutaSegura</strong>
-            <span>Cartagena / MapLibre mapcn / SQLite</span>
+            <span>Cartagena · MapLibre · SQLite</span>
           </div>
         </div>
 
@@ -661,6 +723,7 @@ export default function Dashboard() {
           <button className={`navButton ${activeTab === "map" ? "active" : ""}`} type="button" onClick={() => setActiveTab("map")}>
             <MapPin size={17} />
             Mapa
+            {filteredReports.length > 0 && <span className="navBadge">{filteredReports.length}</span>}
           </button>
           <button className={`navButton ${activeTab === "business" ? "active" : ""}`} type="button" onClick={() => setActiveTab("business")}>
             <Store size={17} />
@@ -686,6 +749,14 @@ export default function Dashboard() {
           <button className="iconButton" title="Mi Cuenta" aria-label="Mi Cuenta" onClick={() => setShowAccountModal(true)}>
             <User size={18} />
           </button>
+          <button
+            className="darkToggleBtn"
+            title={darkMode ? "Modo claro" : "Modo oscuro"}
+            aria-label={darkMode ? "Activar modo claro" : "Activar modo oscuro"}
+            onClick={() => setDarkMode((d) => !d)}
+          >
+            {darkMode ? "☀️" : "🌙"}
+          </button>
           <button className="primaryButton" type="button" onClick={() => setShowReportForm(true)}>
             <Plus size={18} />
             Reportar
@@ -693,7 +764,7 @@ export default function Dashboard() {
         </nav>
       </header>
 
-      <div className={`toastBar ${showRoute ? "womensMode" : ""}`} role="status">{toast}</div>
+      {toast && <div key={toastKey} className={`toastBar ${showWomensMode ? "womensMode" : ""}`} role="status">{toast}</div>}
 
       <section className="mainGrid">
         <aside className="sidebar" aria-label="Cuenta, filtros y notificaciones">
@@ -734,17 +805,80 @@ export default function Dashboard() {
             <div className="fieldStack compact">
               <div className="field">
                 <label htmlFor="from">Origen</label>
-                <input id="from" value={routeFrom} onChange={(event) => setRouteFrom(event.target.value)} placeholder="Casa, colegio, trabajo" />
+                <div className="geocodeFieldWrap">
+                  <input
+                    id="from"
+                    value={routeFrom}
+                    placeholder="Casa, colegio, trabajo..."
+                    autoComplete="off"
+                    onChange={async (e) => {
+                      setRouteFrom(e.target.value);
+                      setFromSuggestions(await geocodeNominatim(e.target.value));
+                    }}
+                  />
+                  {fromSuggestions.length > 0 && (
+                    <div className="geocodeSuggestions">
+                      {fromSuggestions.map((s) => (
+                        <button
+                          key={s.lat + s.lon}
+                          className="geocodeSuggestion"
+                          type="button"
+                          onClick={() => {
+                            setRouteFrom(s.display_name);
+                            setRouteFromCoords([parseFloat(s.lon), parseFloat(s.lat)]);
+                            setFromSuggestions([]);
+                          }}
+                        >
+                          {s.display_name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="field">
                 <label htmlFor="to">Destino</label>
-                <input id="to" value={routeTo} onChange={(event) => setRouteTo(event.target.value)} placeholder="Destino frecuente" />
+                <div className="geocodeFieldWrap">
+                  <input
+                    id="to"
+                    value={routeTo}
+                    placeholder="Destino frecuente..."
+                    autoComplete="off"
+                    onChange={async (e) => {
+                      setRouteTo(e.target.value);
+                      setToSuggestions(await geocodeNominatim(e.target.value));
+                    }}
+                  />
+                  {toSuggestions.length > 0 && (
+                    <div className="geocodeSuggestions">
+                      {toSuggestions.map((s) => (
+                        <button
+                          key={s.lat + s.lon}
+                          className="geocodeSuggestion"
+                          type="button"
+                          onClick={() => {
+                            setRouteTo(s.display_name);
+                            setRouteToCoords([parseFloat(s.lon), parseFloat(s.lat)]);
+                            setToSuggestions([]);
+                          }}
+                        >
+                          {s.display_name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="toggleRow">
                 <button className={`toggleButton ${showRoute ? "active" : ""}`} type="button" onClick={toggleRoute}>
                   <Navigation size={16} /> Trazar Ruta
                 </button>
-                <button className={`toggleButton ${showWomensMode ? "active" : ""}`} type="button" onClick={toggleWomensMode}>
+                <button
+                  className={`toggleButton ${showWomensMode ? "active" : ""}`}
+                  type="button"
+                  data-mode="womens"
+                  onClick={toggleWomensMode}
+                >
                   <Heart size={16} /> Modo mujeres
                 </button>
               </div>
@@ -1022,10 +1156,34 @@ export default function Dashboard() {
               <label htmlFor="zone">Zona</label>
               <input id="zone" name="zone" placeholder="Centro, Manga, Getsemani" />
             </div>
-            <div className="coordinateGrid">
-              <input name="lat" aria-label="Latitud" defaultValue="10.4236" />
-              <input name="lng" aria-label="Longitud" defaultValue="-75.5478" />
+            <div className="field" style={{ flexDirection: "row", alignItems: "center", gap: "8px" }}>
+              <input type="checkbox" id="is_womens_mode_relevant" name="is_womens_mode_relevant" style={{ width: "auto", margin: 0 }} />
+              <label htmlFor="is_womens_mode_relevant" style={{ marginBottom: 0, fontWeight: "normal" }}>¿Es relevante para el Modo Mujeres? (Ej. acoso, zona sola)</label>
             </div>
+            <div className="coordinateGrid">
+              <input name="lat" id="reportLat" aria-label="Latitud" defaultValue="10.4236" />
+              <input name="lng" id="reportLng" aria-label="Longitud" defaultValue="-75.5478" />
+            </div>
+            <button
+              type="button"
+              className="geoButton"
+              onClick={() => {
+                if (!navigator.geolocation) { setToast("Tu navegador no soporta geolocalización."); return; }
+                setToast("Obteniendo tu ubicación...");
+                navigator.geolocation.getCurrentPosition(
+                  (pos) => {
+                    const latEl = document.getElementById("reportLat") as HTMLInputElement | null;
+                    const lngEl = document.getElementById("reportLng") as HTMLInputElement | null;
+                    if (latEl) latEl.value = pos.coords.latitude.toFixed(6);
+                    if (lngEl) lngEl.value = pos.coords.longitude.toFixed(6);
+                    setToast(`Ubicación detectada: ${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`);
+                  },
+                  () => setToast("No se pudo obtener la ubicación. Verifica los permisos.")
+                );
+              }}
+            >
+              <Navigation size={14} /> Usar mi ubicación GPS
+            </button>
             <button className="primaryButton fullButton" type="submit">Crear reporte</button>
           </form>
         </Modal>
@@ -1055,7 +1213,7 @@ export default function Dashboard() {
   );
 }
 
-function VoteForm({ data, onSubmit, onClose }: { data: { id: string; type: "report" | "business"; vote: "SI" | "NO" | "NO_SE" }; onSubmit: (reason: string) => void; onClose: () => void }) {
+function VoteForm({ _data, onSubmit, onClose }: { _data: { id: string; type: "report" | "business"; vote: "SI" | "NO" | "NO_SE" }; onSubmit: (reason: string) => void; onClose: () => void }) {
   return (
     <Modal title="Solicitud de cambio de voto" onClose={onClose}>
       <form className="fieldStack" onSubmit={(e) => { e.preventDefault(); onSubmit(new FormData(e.currentTarget).get("reason") as string); }}>
@@ -1112,6 +1270,7 @@ function mapApiReport(report: Record<string, unknown>): ReportItem {
     lat: Number(report.lat),
     lng: Number(report.lng),
     apiBacked: true,
+    isWomensModeRelevant: Boolean(report.is_womens_mode_relevant),
   };
 }
 

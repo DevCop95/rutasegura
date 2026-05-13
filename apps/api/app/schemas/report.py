@@ -17,6 +17,7 @@ class ReportCreate(CartagenaBoundsMixin):
     lng: Decimal = Field(ge=Decimal("-180"), le=Decimal("180"))
     city: str = Field(default="Cartagena", min_length=2, max_length=120)
     neighborhood: str | None = Field(default=None, max_length=120)
+    is_womens_mode_relevant: bool = False
 
 
 class ReportPublic(BaseModel):
@@ -36,6 +37,7 @@ class ReportPublic(BaseModel):
     city: str
     neighborhood: str | None = None
     is_historical: bool
+    is_womens_mode_relevant: bool
     duplicate_group_count: int
     community_yes_count: int
     community_no_count: int

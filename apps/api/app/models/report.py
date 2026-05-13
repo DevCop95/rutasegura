@@ -28,6 +28,7 @@ class Report(IdMixin, TimestampMixin, Base):
     city: Mapped[str] = mapped_column(String(120), nullable=False)
     neighborhood: Mapped[str | None] = mapped_column(String(120), nullable=True)
     is_historical: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_womens_mode_relevant: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     duplicate_group_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     community_yes_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     community_no_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)

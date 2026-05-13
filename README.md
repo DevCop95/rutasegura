@@ -40,7 +40,7 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -e ".[dev]"
 alembic upgrade head
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload --port 8001
 ```
 
 Jobs locales:
@@ -68,8 +68,8 @@ Variables de entorno base:
 ## URLs locales
 
 - Web: `http://localhost:3000`
-- API health: `http://localhost:8000/health`
-- API docs: `http://localhost:8000/docs`
+- API health: `http://localhost:8001/health`
+- API docs: `http://localhost:8001/docs`
 
 ## Nota de base de datos
 

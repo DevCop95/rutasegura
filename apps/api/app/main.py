@@ -1,8 +1,18 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import api_router
 from app.core.config import settings
+from app.db.seed import run_seed
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):  # noqa: ARG001
+    """Ejecuta el seed al iniciar y libera recursos al cerrar."""
+    run_seed()
+    yield
 
 
 def create_app() -> FastAPI:
@@ -10,6 +20,7 @@ def create_app() -> FastAPI:
         title="RutaSegura API",
         version="0.1.0",
         description="Backend REST para el MVP civico de RutaSegura.",
+        lifespan=lifespan,
     )
 
     app.add_middleware(

@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 :root {
   --bg: #f6f7f4;
   --surface: #ffffff;
@@ -13,7 +15,52 @@
   --amber-soft: #fff2dc;
   --red: #b42318;
   --red-soft: #ffe7e3;
+  --pink: #d63384;
+  --pink-soft: #fce4ef;
   --shadow: 0 14px 34px rgb(23 32 28 / 10%);
+  --card-hover-shadow: 0 8px 28px rgb(23 32 28 / 14%);
+  --transition: 0.18s ease;
+}
+
+.dark {
+  --bg: #0f1512;
+  --surface: #1a2620;
+  --surface-muted: #121d18;
+  --ink: #e8ede9;
+  --muted: #8fa898;
+  --line: #2a3d34;
+  --green: #2dbd8c;
+  --green-soft: #0d2b22;
+  --blue: #5b9bd5;
+  --blue-soft: #0f2035;
+  --amber: #f0a832;
+  --amber-soft: #2b1f00;
+  --red: #e05252;
+  --red-soft: #2a0c0c;
+  --pink: #f06292;
+  --pink-soft: #2b0c1d;
+  --shadow: 0 14px 34px rgb(0 0 0 / 35%);
+  --card-hover-shadow: 0 8px 28px rgb(0 0 0 / 45%);
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-pink {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(214, 51, 132, 0.5); }
+  50%       { box-shadow: 0 0 0 8px rgba(214, 51, 132, 0); }
 }
 
 * {
@@ -30,7 +77,8 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--ink);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Inter', Arial, Helvetica, sans-serif;
+  transition: background var(--transition), color var(--transition);
 }
 
 button,
@@ -806,15 +854,236 @@ nextjs-portal {
 }
 
 .toastBar.womensMode {
-  background: #ff4d94;
+  background: linear-gradient(90deg, var(--pink) 0%, #e91e8c 100%);
   color: white;
   font-weight: 600;
-  box-shadow: 0 4px 12px rgba(255, 77, 148, 0.3);
+  box-shadow: 0 4px 12px rgba(214, 51, 132, 0.35);
   border-top: none;
+  animation: slideDown 0.3s ease;
+}
+
+.toastBar {
+  animation: slideDown 0.25s ease;
 }
 
 .toggleButton.active svg {
-  color: #ff4d94;
+  color: var(--pink);
+}
+
+/* Womens mode button pulses when active */
+.toggleButton.active[data-mode="womens"] {
+  animation: pulse-pink 2s infinite;
+  border-color: var(--pink);
+  background: var(--pink-soft);
+  color: var(--pink);
+}
+
+/* Card micro-animations */
+.reportItem,
+.businessItem {
+  transition: box-shadow var(--transition), transform var(--transition), border-color var(--transition);
+  animation: fadeInUp 0.3s ease both;
+}
+
+.reportItem:hover,
+.businessItem:hover {
+  box-shadow: var(--card-hover-shadow);
+  transform: translateY(-2px);
+  border-color: var(--green);
+}
+
+/* Stagger report items */
+.reportItem:nth-child(1) { animation-delay: 0.04s; }
+.reportItem:nth-child(2) { animation-delay: 0.08s; }
+.reportItem:nth-child(3) { animation-delay: 0.12s; }
+.reportItem:nth-child(4) { animation-delay: 0.16s; }
+.reportItem:nth-child(5) { animation-delay: 0.20s; }
+
+/* Modal animations */
+.modalScrim {
+  animation: fadeInUp 0.2s ease;
+}
+
+.modalPanel {
+  animation: slideUp 0.25s cubic-bezier(0.34, 1.2, 0.64, 1);
+}
+
+/* Button hover effects */
+.primaryButton:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.secondaryButton:hover,
+.navButton:hover,
+.toggleButton:hover {
+  border-color: var(--green);
+  background: var(--green-soft);
+  transition: all var(--transition);
+}
+
+/* Dark mode toggle button */
+.darkToggleBtn {
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: all var(--transition);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.darkToggleBtn:hover {
+  border-color: var(--amber);
+  background: var(--amber-soft);
+}
+
+/* Badge on nav items */
+.navBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--red);
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  margin-left: 2px;
+}
+
+/* Toast dismiss progress bar */
+.toastBar {
+  position: relative;
+  overflow: hidden;
+}
+
+.toastBar::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: rgba(255,255,255,0.45);
+  animation: toastProgress 5s linear forwards;
+}
+
+@keyframes toastProgress {
+  from { width: 100%; }
+  to   { width: 0%; }
+}
+
+/* Womens mode banner */
+.womensBanner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--pink-soft);
+  border: 1px solid var(--pink);
+  border-radius: 8px;
+  color: var(--pink);
+  font-size: 12px;
+  font-weight: 700;
+  animation: fadeInUp 0.3s ease;
+}
+
+/* Geolocation button */
+.geoButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--blue);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+  white-space: nowrap;
+}
+
+.geoButton:hover {
+  border-color: var(--blue);
+  background: var(--blue-soft);
+}
+
+/* Input focus glow */
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  outline: none;
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px rgba(29, 122, 92, 0.15);
+}
+
+/* Topbar dark mode */
+.dark .topbar {
+  background: rgb(26 38 32 / 94%);
+}
+
+/* Sidebar scrollbar dark */
+.dark .sidebar::-webkit-scrollbar,
+.dark .detailPane::-webkit-scrollbar {
+  width: 6px;
+}
+.dark .sidebar::-webkit-scrollbar-thumb,
+.dark .detailPane::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 3px;
+}
+
+/* Nominatim suggestions dropdown */
+.geocodeSuggestions {
+  position: absolute;
+  z-index: 100;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  max-height: 200px;
+  overflow-y: auto;
+  animation: slideDown 0.18s ease;
+}
+
+.geocodeSuggestion {
+  padding: 9px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--line);
+  transition: background var(--transition);
+  text-align: left;
+  width: 100%;
+  background: transparent;
+  border-left: 0;
+  border-right: 0;
+  color: var(--ink);
+}
+
+.geocodeSuggestion:last-child {
+  border-bottom: 0;
+}
+
+.geocodeSuggestion:hover {
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+.geocodeFieldWrap {
+  position: relative;
 }
 
 @media (max-width: 560px) {
