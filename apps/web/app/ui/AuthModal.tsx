@@ -36,7 +36,7 @@ export default function AuthModal({
       onClose={() => setAuthMode(null)}
     >
       {authMode === "verify_email" ? (
-        <form className="space-y-4" onSubmit={handleVerify}>
+        <form key="verify-email-form" className="space-y-4" onSubmit={handleVerify}>
           <div className="text-sm text-on-surface/70 text-center">
             Hemos enviado un código de 6 dígitos a su correo electrónico: <br />
             <span className="font-bold text-primary">{verificationEmail}</span>
@@ -65,7 +65,7 @@ export default function AuthModal({
           </div>
         </form>
       ) : (
-        <form className="space-y-4" onSubmit={handleAuth}>
+        <form key="auth-form" className="space-y-4" onSubmit={handleAuth}>
           <div className="space-y-1">
             <label className="text-sm font-bold text-on-surface/70 ml-1">Email</label>
             <input name="email" type="email" required className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant rounded-xl outline-none focus:ring-2 focus:ring-primary/20 transition-all" />
