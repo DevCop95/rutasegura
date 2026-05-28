@@ -79,6 +79,11 @@ export default function AuthModal({
           <div className="space-y-1">
             <label className="text-sm font-bold text-on-surface/70 ml-1">Contraseña</label>
             <input name="password" type="password" required minLength={8} className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant rounded-xl outline-none focus:ring-2 focus:ring-primary/20 transition-all" />
+            {authMode === "register" && (
+              <p className="text-[11px] text-outline ml-1 leading-normal">
+                Debe tener al menos 8 caracteres, incluir una mayúscula, una minúscula, un número y un carácter especial (ej. !@#$%).
+              </p>
+            )}
           </div>
           <button type="submit" className="w-full bg-primary text-on-primary py-3 rounded-xl font-bold shadow-lg shadow-primary/20 hover:shadow-xl transition-all active:scale-[0.98]">
             {authMode === "login" ? "Entrar" : `Registrar como ${roleLabel(activeRole)}`}

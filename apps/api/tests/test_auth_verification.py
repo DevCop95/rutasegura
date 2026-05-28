@@ -46,7 +46,7 @@ def test_auth_verification_flow(client: TestClient) -> None:
     reg_payload = {
         "email": "test@example.com",
         "alias": "TestUser",
-        "password": "strongpassword123",
+        "password": "StrongPassword@123",
         "user_type": "CITIZEN"
     }
     response = client.post("/api/v1/auth/register", json=reg_payload)
@@ -99,7 +99,7 @@ def test_resend_verification_code(client: TestClient) -> None:
     reg_payload = {
         "email": "resend@example.com",
         "alias": "ResendUser",
-        "password": "strongpassword123",
+        "password": "StrongPassword@123",
         "user_type": "CITIZEN"
     }
     response = client.post("/api/v1/auth/register", json=reg_payload)
@@ -134,3 +134,38 @@ def test_resend_verification_code(client: TestClient) -> None:
     }
     response = client.post("/api/v1/auth/verify", json=verify_payload)
     assert response.status_code == 200
+
+
+def test_password_security_validation(client: TestClient) -> None:
+    # 1. Try to register with password that doesn't have uppercase
+    reg_payload_no_upper = {
+        "email": "weak1@example.com",
+        "alias": "WeakUser1",
+        "password": "weakpassword123@",
+        "user_type": "CITIZEN"
+    }
+    response = client.post("/api/v1/auth/register", json=reg_payload_no_upper)
+    assert response.status_code == 422
+    assert "mayúscula" in response.text
+
+    # 2. Try to register with password that doesn't have digit
+    reg_payload_no_digit = {
+        "email": "weak2@example.com",
+        "alias": "WeakUser2",
+        "password": "WeakPassword@",
+        "user_type": "CITIZEN"
+    }
+    response = client.post("/api/v1/auth/register", json=reg_payload_no_digit)
+    assert response.status_code == 422
+    assert "número" in response.text
+
+    # 3. Try to register with password that doesn't have special char
+    reg_payload_no_special = {
+        "email": "weak3@example.com",
+        "alias": "WeakUser3",
+        "password": "WeakPassword123",
+        "user_type": "CITIZEN"
+    }
+    response = client.post("/api/v1/auth/register", json=reg_payload_no_special)
+    assert response.status_code == 422
+    assert "especial" in response.text

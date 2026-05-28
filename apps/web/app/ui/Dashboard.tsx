@@ -1047,7 +1047,20 @@ export default function Dashboard() {
     const response = await fetch(`${API_BASE}${path}`, { ...options, headers });
     const body = response.status === 204 ? null : await response.json().catch(() => null);
     if (!response.ok) {
-      throw new Error(body?.detail ?? "La API rechazo la operacion.");
+      let errorMsg = "La API rechazo la operacion.";
+      if (body?.detail) {
+        if (Array.isArray(body.detail)) {
+          errorMsg = body.detail
+            .map((d: any) => {
+              const msg = d.msg || "";
+              return msg.startsWith("Value error, ") ? msg.substring(13) : msg;
+            })
+            .join(", ");
+        } else {
+          errorMsg = String(body.detail);
+        }
+      }
+      throw new Error(errorMsg);
     }
     return body as T;
   }
