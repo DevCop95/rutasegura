@@ -919,6 +919,7 @@ export default function Dashboard() {
   const [editAlias, setEditAlias] = useState("");
   const [editPassword, setEditPassword] = useState("");
   const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [showWomensModeConfirm, setShowWomensModeConfirm] = useState(false);
   const [showVoteForm, setShowVoteForm] = useState<{ id: string; type: "report" | "business"; vote: "SI" | "NO" | "NO_SE" } | null>(null);
   const [showReports, setShowReports] = useState(true);
@@ -1031,9 +1032,17 @@ export default function Dashboard() {
         (verificationFilter === "verificado" && report.status === "VERIFICADO") ||
         (verificationFilter === "comunidad" && report.status === "COMUNITARIAMENTE_CONFIABLE") ||
         (verificationFilter === "no-verificado" && report.status === "NO_VERIFICADO");
-      return categoryOk && verificationOk;
+      
+      const query = searchQuery.trim().toLowerCase();
+      const matchesSearch = !query || 
+        report.title.toLowerCase().includes(query) || 
+        report.description.toLowerCase().includes(query) || 
+        report.category.toLowerCase().includes(query) || 
+        report.zone.toLowerCase().includes(query);
+
+      return categoryOk && verificationOk && matchesSearch;
     });
-  }, [reports, categoryFilter, verificationFilter, showWomensMode]);
+  }, [reports, categoryFilter, verificationFilter, showWomensMode, searchQuery]);
 
   const profile = user
     ? {
@@ -1847,6 +1856,8 @@ export default function Dashboard() {
               <input 
                 type="text" 
                 placeholder="Buscar incidentes o zonas..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10 pr-4 py-2 bg-surface-container-low border-none rounded-full text-sm w-64 focus:ring-2 focus:ring-primary/20 transition-all outline-none"
               />
             </div>
