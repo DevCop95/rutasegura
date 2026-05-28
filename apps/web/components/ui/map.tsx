@@ -72,6 +72,15 @@ export function Map({ children, className, style, center, zoom = 12, ...options 
   useEffect(() => {
     if (!containerRef.current) return;
 
+    // Patch temporal de console.error para suprimir el spam de "Image X could not be loaded"
+    // que MapLibre emite desde el WebWorker (imposible de interceptar con styleimagemissing)
+    const originalConsoleError = console.error;
+    console.error = (...args: unknown[]) => {
+      const msg = typeof args[0] === "string" ? args[0] : "";
+      if (msg.includes("could not be loaded") && msg.includes("map.addImage")) return;
+      originalConsoleError.apply(console, args);
+    };
+
     const instance = new MapLibreGL.Map({
       container: containerRef.current,
       style: mapStyle,
@@ -102,6 +111,8 @@ export function Map({ children, className, style, center, zoom = 12, ...options 
       instance.remove();
       setLoaded(false);
       setMap(null);
+      // Restaurar console.error original al desmontar
+      console.error = originalConsoleError;
     };
     // MapLibre owns this instance after mount; prop changes are handled by app state.
     // eslint-disable-next-line react-hooks/exhaustive-deps

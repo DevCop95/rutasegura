@@ -1041,28 +1041,38 @@ export default function Dashboard() {
   const isAdmin = user?.user_type === "ADMIN";
 
   async function api<T>(path: string, options: RequestInit = {}) {
-    const headers = new Headers(options.headers);
-    headers.set("Content-Type", "application/json");
-    if (token) headers.set("Authorization", `Bearer ${token}`);
-    const response = await fetch(`${API_BASE}${path}`, { ...options, headers });
-    const body = response.status === 204 ? null : await response.json().catch(() => null);
-    if (!response.ok) {
-      let errorMsg = "La API rechazo la operacion.";
-      if (body?.detail) {
-        if (Array.isArray(body.detail)) {
-          errorMsg = body.detail
-            .map((d: any) => {
-              const msg = d.msg || "";
-              return msg.startsWith("Value error, ") ? msg.substring(13) : msg;
-            })
-            .join(", ");
-        } else {
-          errorMsg = String(body.detail);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+    try {
+      const headers = new Headers(options.headers);
+      headers.set("Content-Type", "application/json");
+      if (token) headers.set("Authorization", `Bearer ${token}`);
+      const response = await fetch(`${API_BASE}${path}`, {
+        ...options,
+        headers,
+        signal: controller.signal,
+      });
+      const body = response.status === 204 ? null : await response.json().catch(() => null);
+      if (!response.ok) {
+        let errorMsg = "La API rechazo la operacion.";
+        if (body?.detail) {
+          if (Array.isArray(body.detail)) {
+            errorMsg = body.detail
+              .map((d: any) => {
+                const msg = d.msg || "";
+                return msg.startsWith("Value error, ") ? msg.substring(13) : msg;
+              })
+              .join(", ");
+          } else {
+            errorMsg = String(body.detail);
+          }
         }
+        throw new Error(errorMsg);
       }
-      throw new Error(errorMsg);
+      return body as T;
+    } finally {
+      clearTimeout(timeoutId);
     }
-    return body as T;
   }
 
   async function loadReports(cityKey: string = currentCity) {
@@ -1071,7 +1081,7 @@ export default function Dashboard() {
       const mapped = apiReports.map(mapApiReport);
       setReports((current) => mergeById(generateDemoReports(cityKey), mapped, current.filter((item) => item.apiBacked)));
     } catch {
-      setToast("API no disponible para reportes; sigo con datos demo.");
+      // API no disponible (CORS, timeout, servidor caído) — usar datos demo silenciosamente
     }
   }
 
@@ -1086,7 +1096,7 @@ export default function Dashboard() {
       });
       setBusinesses((current) => mergeById(generateDemoBusinesses(cityKey), filteredMapped, current.filter((item) => item.apiBacked)));
     } catch {
-      setToast("API no disponible para empresas; sigo con datos demo.");
+      // API no disponible (CORS, timeout, servidor caído) — usar datos demo silenciosamente
     }
   }
 
