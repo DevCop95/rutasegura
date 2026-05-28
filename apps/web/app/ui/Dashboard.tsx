@@ -915,6 +915,9 @@ export default function Dashboard() {
   const [showReportForm, setShowReportForm] = useState(false);
   const [showBusinessForm, setShowBusinessForm] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [editAlias, setEditAlias] = useState("");
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [showWomensModeConfirm, setShowWomensModeConfirm] = useState(false);
   const [showVoteForm, setShowVoteForm] = useState<{ id: string; type: "report" | "business"; vote: "SI" | "NO" | "NO_SE" } | null>(null);
   const [showReports, setShowReports] = useState(true);
@@ -1282,6 +1285,26 @@ export default function Dashboard() {
     setToast("Sesion cerrada correctamente.");
     setShowAccountModal(false);
     setActiveTab("map");
+  }
+
+  async function handleUpdateProfile(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!token) return;
+    setIsSavingProfile(true);
+    try {
+      const updatedUser = await api<UserPublic>(`/api/v1/users/me`, {
+        method: "PATCH",
+        body: JSON.stringify({ alias: editAlias }),
+      });
+      setUser(updatedUser);
+      localStorage.setItem("rs_user", JSON.stringify(updatedUser));
+      setToast("Perfil actualizado correctamente.");
+      setIsEditingProfile(false);
+    } catch (error) {
+      setToast(error instanceof Error ? error.message : "Error al actualizar perfil.");
+    } finally {
+      setIsSavingProfile(false);
+    }
   }
 
   async function createReport(event: FormEvent<HTMLFormElement>) {
@@ -1793,7 +1816,7 @@ export default function Dashboard() {
               <p className="text-sm font-bold truncate">{profile.alias}</p>
               <p className="text-xs text-on-primary/60 truncate">{profile.rank}</p>
             </div>
-            <button onClick={() => setShowAccountModal(true)} className="text-on-primary/40 hover:text-on-primary transition-colors">
+            <button onClick={() => { setShowAccountModal(true); setEditAlias(user?.alias || ""); setIsEditingProfile(false); }} className="text-on-primary/40 hover:text-on-primary transition-colors">
               <MoreVertical size={18} />
             </button>
           </div>
@@ -1871,11 +1894,11 @@ export default function Dashboard() {
             <StatCard icon={<Clock3 size={18} className="sm:w-5 sm:h-5" />} label="Ruta" value={showRoute ? "Activa" : "Desviada"} color="bg-on-tertiary-container/10 text-on-tertiary-container" />
             
             <div className="col-span-2 lg:col-span-4 bg-surface rounded-2xl border border-outline-variant/50 overflow-hidden h-[450px] sm:h-[550px] shadow-sm relative group">
-              <div className="absolute top-3 left-3 sm:top-4 sm:left-4 z-10 flex gap-1.5 sm:gap-2">
-                <button className={`px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold flex items-center gap-1.5 sm:gap-2 transition-all ${showReports ? "bg-primary text-on-primary" : "bg-surface text-on-surface border border-outline-variant"}`} onClick={() => setShowReports(!showReports)}>
+              <div className="absolute top-3 left-3 sm:top-4 sm:left-4 z-20 flex gap-1.5 sm:gap-2">
+                <button className={`px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold flex items-center gap-1.5 sm:gap-2 transition-all shadow-md ${showReports ? "bg-primary text-on-primary" : "bg-surface text-on-surface border border-outline-variant"}`} onClick={() => setShowReports(!showReports)}>
                   <SlidersHorizontal size={12} className="sm:w-3.5 sm:h-3.5" /> Incidentes
                 </button>
-                <button className={`px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold flex items-center gap-1.5 sm:gap-2 transition-all ${showBusinesses ? "bg-primary text-on-primary" : "bg-surface text-on-surface border border-outline-variant"}`} onClick={() => setShowBusinesses(!showBusinesses)}>
+                <button className={`px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold flex items-center gap-1.5 sm:gap-2 transition-all shadow-md ${showBusinesses ? "bg-primary text-on-primary" : "bg-surface text-on-surface border border-outline-variant"}`} onClick={() => setShowBusinesses(!showBusinesses)}>
                   <Building2 size={12} className="sm:w-3.5 sm:h-3.5" /> Puntos Seguros
                 </button>
               </div>
@@ -2119,73 +2142,114 @@ export default function Dashboard() {
             </div>
 
             {token ? (
-              <>
-                {/* Rank Progression */}
-                <div className="p-4 bg-surface-container-low border border-outline-variant/40 rounded-2xl space-y-2">
-                  <div className="flex justify-between items-center text-[11px] font-bold">
-                    <span className="text-outline">Rango: {profile.rank}</span>
-                    <span className="text-primary font-black">
-                      {getRankProgress(profile.reputation).nextRank !== "Máximo Rango" 
-                        ? `Próximo: ${getRankProgress(profile.reputation).nextRank}` 
-                        : "Nivel Máximo"}
-                    </span>
-                  </div>
-                  
-                  {/* Progress Bar */}
-                  <div className="relative w-full h-2.5 bg-surface-container-high rounded-full overflow-hidden border border-outline-variant/20">
-                    <div 
-                      className="h-full bg-gradient-to-r from-primary to-secondary transition-all duration-700 ease-out rounded-full"
-                      style={{ width: `${getRankProgress(profile.reputation).progress}%` }}
+              isEditingProfile ? (
+                <form onSubmit={handleUpdateProfile} className="space-y-4">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-on-surface/70 ml-1">Alias Público</label>
+                    <input
+                      type="text"
+                      required
+                      minLength={3}
+                      maxLength={80}
+                      value={editAlias}
+                      onChange={(e) => setEditAlias(e.target.value)}
+                      className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant rounded-xl outline-none focus:ring-2 focus:ring-primary/20 transition-all text-sm text-on-surface"
                     />
                   </div>
-                  
-                  <div className="flex justify-between items-center text-[9px] text-outline font-bold">
-                    <span>{profile.reputation} pts</span>
-                    {getRankProgress(profile.reputation).nextRank !== "Máximo Rango" ? (
-                      <span>Faltan {getRankProgress(profile.reputation).pointsNeeded} pts para el siguiente rango</span>
-                    ) : (
-                      <span>¡Felicidades, eres Embajador!</span>
-                    )}
+                  <div className="flex gap-2 pt-2">
+                    <button
+                      type="submit"
+                      disabled={isSavingProfile}
+                      className="flex-1 py-3 bg-primary text-on-primary rounded-xl font-bold text-xs shadow-lg shadow-primary/10 disabled:opacity-50 transition-all active:scale-[0.98]"
+                    >
+                      {isSavingProfile ? "Guardando..." : "Guardar Cambios"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingProfile(false)}
+                      className="flex-1 py-3 bg-surface border border-outline-variant text-on-surface rounded-xl font-bold text-xs transition-all active:scale-[0.98]"
+                    >
+                      Cancelar
+                    </button>
                   </div>
-                </div>
+                </form>
+              ) : (
+                <>
+                  {/* Rank Progression */}
+                  <div className="p-4 bg-surface-container-low border border-outline-variant/40 rounded-2xl space-y-2">
+                    <div className="flex justify-between items-center text-[11px] font-bold">
+                      <span className="text-outline">Rango: {profile.rank}</span>
+                      <span className="text-primary font-black">
+                        {getRankProgress(profile.reputation).nextRank !== "Máximo Rango" 
+                          ? `Próximo: ${getRankProgress(profile.reputation).nextRank}` 
+                          : "Nivel Máximo"}
+                      </span>
+                    </div>
+                    
+                    {/* Progress Bar */}
+                    <div className="relative w-full h-2.5 bg-surface-container-high rounded-full overflow-hidden border border-outline-variant/20">
+                      <div 
+                        className="h-full bg-gradient-to-r from-primary to-secondary transition-all duration-700 ease-out rounded-full"
+                        style={{ width: `${getRankProgress(profile.reputation).progress}%` }}
+                      />
+                    </div>
+                    
+                    <div className="flex justify-between items-center text-[9px] text-outline font-bold">
+                      <span>{profile.reputation} pts</span>
+                      {getRankProgress(profile.reputation).nextRank !== "Máximo Rango" ? (
+                        <span>Faltan {getRankProgress(profile.reputation).pointsNeeded} pts para el siguiente rango</span>
+                      ) : (
+                        <span>¡Felicidades, eres Embajador!</span>
+                      )}
+                    </div>
+                  </div>
 
-                {/* Stats Grid */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="p-3 bg-surface-container-low border border-outline-variant/30 rounded-xl">
-                    <p className="text-[9px] font-extrabold text-outline uppercase tracking-wider">Puntos / Reputación</p>
-                    <p className="text-sm font-headline font-black text-primary mt-0.5">{profile.reputation} pts</p>
-                  </div>
-                  <div className="p-3 bg-surface-container-low border border-outline-variant/30 rounded-xl">
-                    <p className="text-[9px] font-extrabold text-outline uppercase tracking-wider">Votos Emitidos</p>
-                    <p className="text-sm font-headline font-black text-on-surface mt-0.5">{profile.votes} votos</p>
-                  </div>
-                  <div className="p-3 bg-surface-container-low border border-outline-variant/30 rounded-xl col-span-2">
-                    <p className="text-[9px] font-extrabold text-outline uppercase tracking-wider mb-2">Desglose de Reportes</p>
-                    <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                      <div className="bg-secondary/5 border border-secondary/20 rounded-lg p-1.5">
-                        <span className="block font-black text-secondary">{profile.verified}</span>
-                        <span className="text-[8px] text-outline font-bold uppercase">Verificados</span>
-                      </div>
-                      <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg p-1.5">
-                        <span className="block font-black text-amber-600">{profile.unverified}</span>
-                        <span className="text-[8px] text-outline font-bold uppercase">Pendientes</span>
-                      </div>
-                      <div className="bg-error/5 border border-error/20 rounded-lg p-1.5">
-                        <span className="block font-black text-error">{profile.rejected}</span>
-                        <span className="text-[8px] text-outline font-bold uppercase">Rechazados</span>
+                  {/* Stats Grid */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 bg-surface-container-low border border-outline-variant/30 rounded-xl">
+                      <p className="text-[9px] font-extrabold text-outline uppercase tracking-wider">Puntos / Reputación</p>
+                      <p className="text-sm font-headline font-black text-primary mt-0.5">{profile.reputation} pts</p>
+                    </div>
+                    <div className="p-3 bg-surface-container-low border border-outline-variant/30 rounded-xl">
+                      <p className="text-[9px] font-extrabold text-outline uppercase tracking-wider">Votos Emitidos</p>
+                      <p className="text-sm font-headline font-black text-on-surface mt-0.5">{profile.votes} votos</p>
+                    </div>
+                    <div className="p-3 bg-surface-container-low border border-outline-variant/30 rounded-xl col-span-2">
+                      <p className="text-[9px] font-extrabold text-outline uppercase tracking-wider mb-2">Desglose de Reportes</p>
+                      <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                        <div className="bg-secondary/5 border border-secondary/20 rounded-lg p-1.5">
+                          <span className="block font-black text-secondary">{profile.verified}</span>
+                          <span className="text-[8px] text-outline font-bold uppercase">Verificados</span>
+                        </div>
+                        <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg p-1.5">
+                          <span className="block font-black text-amber-600">{profile.unverified}</span>
+                          <span className="text-[8px] text-outline font-bold uppercase">Pendientes</span>
+                        </div>
+                        <div className="bg-error/5 border border-error/20 rounded-lg p-1.5">
+                          <span className="block font-black text-error">{profile.rejected}</span>
+                          <span className="text-[8px] text-outline font-bold uppercase">Rechazados</span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Logout Button */}
-                <button 
-                  onClick={handleLogout} 
-                  className="w-full py-2.5 bg-error/5 hover:bg-error/10 border border-error/20 text-error rounded-xl font-bold text-xs transition-all active:scale-[0.98] mt-2"
-                >
-                  Cerrar sesión
-                </button>
-              </>
+                  {/* Actions Grid */}
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => setIsEditingProfile(true)}
+                      className="flex-1 py-2.5 bg-primary/10 hover:bg-primary/20 border border-primary/20 text-primary rounded-xl font-bold text-xs transition-all active:scale-[0.98] mt-2"
+                    >
+                      Editar Perfil
+                    </button>
+                    <button 
+                      onClick={handleLogout} 
+                      className="flex-1 py-2.5 bg-error/5 hover:bg-error/10 border border-error/20 text-error rounded-xl font-bold text-xs transition-all active:scale-[0.98] mt-2"
+                    >
+                      Cerrar sesión
+                    </button>
+                  </div>
+                </>
+              )
             ) : (
               <div className="space-y-3">
                 <button onClick={() => { setAuthMode("login"); setShowAccountModal(false); }} className="w-full bg-primary text-on-primary py-3 rounded-xl font-bold">Login</button>
