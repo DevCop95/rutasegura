@@ -917,6 +917,7 @@ export default function Dashboard() {
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [editAlias, setEditAlias] = useState("");
+  const [editPassword, setEditPassword] = useState("");
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [showWomensModeConfirm, setShowWomensModeConfirm] = useState(false);
   const [showVoteForm, setShowVoteForm] = useState<{ id: string; type: "report" | "business"; vote: "SI" | "NO" | "NO_SE" } | null>(null);
@@ -1291,15 +1292,25 @@ export default function Dashboard() {
     e.preventDefault();
     if (!token) return;
     setIsSavingProfile(true);
+    const payload: { alias: string; password?: string } = { alias: editAlias };
+    if (editPassword.trim() !== "") {
+      if (editPassword.length < 8) {
+        setToast("La contraseña debe tener al menos 8 caracteres.");
+        setIsSavingProfile(false);
+        return;
+      }
+      payload.password = editPassword;
+    }
     try {
       const updatedUser = await api<UserPublic>(`/api/v1/users/me`, {
         method: "PATCH",
-        body: JSON.stringify({ alias: editAlias }),
+        body: JSON.stringify(payload),
       });
       setUser(updatedUser);
       localStorage.setItem("rs_user", JSON.stringify(updatedUser));
       setToast("Perfil actualizado correctamente.");
       setIsEditingProfile(false);
+      setEditPassword("");
     } catch (error) {
       setToast(error instanceof Error ? error.message : "Error al actualizar perfil.");
     } finally {
@@ -1816,7 +1827,7 @@ export default function Dashboard() {
               <p className="text-sm font-bold truncate">{profile.alias}</p>
               <p className="text-xs text-on-primary/60 truncate">{profile.rank}</p>
             </div>
-            <button onClick={() => { setShowAccountModal(true); setEditAlias(user?.alias || ""); setIsEditingProfile(false); }} className="text-on-primary/40 hover:text-on-primary transition-colors">
+            <button onClick={() => { setShowAccountModal(true); setEditAlias(user?.alias || ""); setEditPassword(""); setIsEditingProfile(false); }} className="text-on-primary/40 hover:text-on-primary transition-colors">
               <MoreVertical size={18} />
             </button>
           </div>
@@ -2153,6 +2164,17 @@ export default function Dashboard() {
                       maxLength={80}
                       value={editAlias}
                       onChange={(e) => setEditAlias(e.target.value)}
+                      className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant rounded-xl outline-none focus:ring-2 focus:ring-primary/20 transition-all text-sm text-on-surface"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-on-surface/70 ml-1">Nueva Contraseña</label>
+                    <input
+                      type="password"
+                      minLength={8}
+                      value={editPassword}
+                      onChange={(e) => setEditPassword(e.target.value)}
+                      placeholder="Dejar en blanco para no cambiar"
                       className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant rounded-xl outline-none focus:ring-2 focus:ring-primary/20 transition-all text-sm text-on-surface"
                     />
                   </div>

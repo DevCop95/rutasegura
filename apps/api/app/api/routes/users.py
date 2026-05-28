@@ -26,6 +26,9 @@ def update_me(payload: UserUpdate, current_user: CurrentUser, db: DbSession) -> 
         current_user.photo_url = payload.photo_url
     if payload.is_womens_mode_verified is not None:
         current_user.is_womens_mode_verified = payload.is_womens_mode_verified
+    if payload.password is not None:
+        from app.core.security import hash_password
+        current_user.password_hash = hash_password(payload.password)
 
     db.add(current_user)
     db.commit()

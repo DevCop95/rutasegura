@@ -27,4 +27,5 @@ class UserUpdate(BaseModel):
     alias: str | None = Field(default=None, min_length=3, max_length=80)
     photo_url: str | None = Field(default=None, max_length=500)
     is_womens_mode_verified: bool | None = Field(default=None)
+    password: str | None = Field(default=None, min_length=8, max_length=128)
 
