@@ -23,9 +23,15 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    # Separar orígenes si vienen como lista por coma (e.g., producción + desarrollo)
+    origins = [o.strip() for o in settings.web_origin.split(",") if o.strip()]
+    for local_origin in ["http://127.0.0.1:3000", "http://localhost:3000"]:
+        if local_origin not in origins:
+            origins.append(local_origin)
+
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[settings.web_origin, "http://127.0.0.1:3000", "http://localhost:3000"],
+        allow_origins=origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
