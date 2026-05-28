@@ -25,13 +25,18 @@ def create_app() -> FastAPI:
 
     # Separar orígenes si vienen como lista por coma (e.g., producción + desarrollo)
     origins = [o.strip() for o in settings.web_origin.split(",") if o.strip()]
-    for local_origin in ["http://127.0.0.1:3000", "http://localhost:3000"]:
+    for local_origin in [
+        "http://127.0.0.1:3000",
+        "http://localhost:3000",
+        "https://web-devcop95s-projects.vercel.app"
+    ]:
         if local_origin not in origins:
             origins.append(local_origin)
 
     app.add_middleware(
         CORSMiddleware,
         allow_origins=origins,
+        allow_origin_regex=r"https://web-devcop95s-projects.*\.vercel\.app",
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

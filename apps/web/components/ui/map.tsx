@@ -63,8 +63,8 @@ export function Map({ children, className, style, center, zoom = 12, ...options 
   const mapStyle = useMemo(() => {
     if (style) return style;
     const maptilerKey = process.env.NEXT_PUBLIC_MAPTILER_KEY;
-    if (maptilerKey) {
-      return `https://api.maptiler.com/maps/streets-v2/style.json?key=${maptilerKey}`;
+    if (maptilerKey && maptilerKey.trim() !== "") {
+      return `https://api.maptiler.com/maps/streets-v2/style.json?key=${maptilerKey.trim()}`;
     }
     return osmStyle;
   }, [style]);
@@ -79,6 +79,18 @@ export function Map({ children, className, style, center, zoom = 12, ...options 
       zoom,
       attributionControl: { compact: true },
       ...options,
+    });
+
+    // Silenciar advertencias de imágenes/iconos no encontrados en el sprite (común en MapTiler)
+    instance.on("styleimagemissing", (e) => {
+      // Ignorar IDs vacíos o con sólo espacios (algunos estilos de MapTiler los generan)
+      if (!e.id || !e.id.trim()) return;
+      const width = 1;
+      const height = 1;
+      const data = new Uint8Array(width * height * 4);
+      if (!instance.hasImage(e.id)) {
+        instance.addImage(e.id, { width, height, data });
+      }
     });
 
     const handleLoad = () => setLoaded(true);
