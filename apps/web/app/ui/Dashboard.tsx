@@ -886,6 +886,20 @@ function hostFromUrl(url: string) {
   }
 }
 
+function getDefaultRouteCoords(cityKey: string): { from: [number, number]; to: [number, number] } {
+  const config = CITIES_CONFIG[cityKey] || CITIES_CONFIG["Cartagena"];
+  let from: [number, number] = [-75.5488, 10.4262];
+  let to: [number, number] = [-75.5362, 10.4109];
+  if (config.demoBusinesses && config.demoBusinesses.length > 1) {
+    from = [config.demoBusinesses[0].lng, config.demoBusinesses[0].lat];
+    to = [config.demoBusinesses[1].lng, config.demoBusinesses[1].lat];
+  } else if (config.seeds && config.seeds.length > 1) {
+    from = [config.seeds[0].lng, config.seeds[0].lat];
+    to = [config.seeds[1].lng, config.seeds[1].lat];
+  }
+  return { from, to };
+}
+
 export default function Dashboard() {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<UserPublic | null>(null);
@@ -1139,6 +1153,18 @@ export default function Dashboard() {
 
   async function handleCityChange(newCity: string) {
     setCurrentCity(newCity);
+    setRouteFrom("");
+    setRouteFromCoords(null);
+    setRouteTo("");
+    setRouteToCoords(null);
+
+    if (showRoute) {
+      const defaults = getDefaultRouteCoords(newCity);
+      void fetchRoute(defaults.from, defaults.to);
+    } else {
+      setRouteCoordinates([]);
+    }
+
     const newDemoReports = generateDemoReports(newCity);
     const newDemoBusinesses = generateDemoBusinesses(newCity);
     setReports(newDemoReports);
@@ -1540,8 +1566,9 @@ export default function Dashboard() {
     const nextState = !showRoute;
     setShowRoute(nextState);
     if (nextState) {
-      const from: [number, number] = routeFromCoords ?? [-75.5488, 10.4262];
-      const to: [number, number] = routeToCoords ?? [-75.5362, 10.4109];
+      const defaults = getDefaultRouteCoords(currentCity);
+      const from: [number, number] = routeFromCoords ?? defaults.from;
+      const to: [number, number] = routeToCoords ?? defaults.to;
       void fetchRoute(from, to);
       setToast("Ruta Segura: Calculando trayecto optimo por calles reales.");
     } else {
@@ -1578,7 +1605,8 @@ export default function Dashboard() {
 
     if (!showRoute) {
       setShowRoute(true);
-      void fetchRoute([-75.5488, 10.4262], [-75.5362, 10.4109]);
+      const defaults = getDefaultRouteCoords(currentCity);
+      void fetchRoute(defaults.from, defaults.to);
     }
     setShowWomensMode(true);
     setCategoryFilter("todas");
