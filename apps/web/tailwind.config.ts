@@ -1,0 +1,73 @@
+import type { Config } from "tailwindcss";
+
+export default {
+  content: [
+    "./app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./components/**/*.{js,ts,jsx,tsx,mdx}",
+  ],
+  theme: {
+    extend: {
+      colors: {
+        "on-primary": "#ffffff",
+        "surface-variant": "#e4e2e2",
+        "on-secondary-fixed-variant": "#005232",
+        "primary-container": "#002f6c",
+        "on-primary-fixed-variant": "#224583",
+        "background": "#fbf9f8",
+        "primary-fixed-dim": "#aec6ff",
+        "secondary-container": "#75f8b3",
+        "surface-dim": "#dbd9d9",
+        "tertiary-container": "#412e00",
+        "on-secondary-fixed": "#002111",
+        "error-container": "#ffdad6",
+        "on-error-container": "#93000a",
+        "secondary": "#006d43",
+        "surface-bright": "#fbf9f8",
+        "tertiary": "#271a00",
+        "tertiary-fixed-dim": "#fbbc00",
+        "surface-container": "#efeded",
+        "primary": "#001b44",
+        "on-tertiary-container": "#c39100",
+        "surface-container-high": "#eae8e7",
+        "on-tertiary-fixed": "#261a00",
+        "surface": "#fbf9f8",
+        "inverse-on-surface": "#f2f0f0",
+        "secondary-fixed": "#78fbb6",
+        "on-secondary": "#ffffff",
+        "surface-container-lowest": "#ffffff",
+        "error": "#ba1a1a",
+        "on-tertiary-fixed-variant": "#5c4300",
+        "on-secondary-container": "#007147",
+        "outline-variant": "#c4c6d2",
+        "inverse-primary": "#aec6ff",
+        "outline": "#747781",
+        "surface-container-highest": "#e4e2e2",
+        "surface-container-low": "#f5f3f3",
+        "on-error": "#ffffff",
+        "primary-fixed": "#d8e2ff",
+        "secondary-fixed-dim": "#59de9b",
+        "on-background": "#1b1c1c",
+        "on-surface-variant": "#434750",
+        "inverse-surface": "#303030",
+        "on-tertiary": "#ffffff",
+        "tertiary-fixed": "#ffdfa0",
+        "on-primary-container": "#7999dc",
+        "surface-tint": "#3c5d9c",
+        "on-surface": "#1b1c1c",
+        "on-primary-fixed": "#001a42"
+      },
+      fontFamily: {
+        "headline": ["Manrope", "sans-serif"],
+        "body": ["Inter", "sans-serif"],
+        "label": ["Inter", "sans-serif"]
+      },
+      borderRadius: {
+        "DEFAULT": "0.125rem",
+        "lg": "0.25rem",
+        "xl": "0.5rem",
+        "full": "0.75rem"
+      },
+    },
+  },
+  plugins: [],
+} satisfies Config;

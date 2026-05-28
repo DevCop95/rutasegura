@@ -20,3 +20,18 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserPublic
+
+
+class RegisterResponse(BaseModel):
+    status: str
+    email: str
+
+
+class VerifyEmailRequest(BaseModel):
+    email: str = Field(min_length=5, max_length=255)
+    code: str = Field(min_length=6, max_length=6)
+
+
+class ResendCodeRequest(BaseModel):
+    email: str = Field(min_length=5, max_length=255)
+

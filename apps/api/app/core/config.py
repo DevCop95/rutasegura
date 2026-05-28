@@ -11,5 +11,15 @@ class Settings(BaseSettings):
     jwt_expire_minutes: int = 1440
     web_origin: str = "http://localhost:3000"
 
+    admin_email: str = "admin@rutasegura.com"
+    admin_password: str = "ComplexAdminPassword2026!#"
+
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_user: str | None = None
+    smtp_password: str | None = None
+    smtp_from: str = "noreply@rutasegura.com"
+
 
 settings = Settings()
+

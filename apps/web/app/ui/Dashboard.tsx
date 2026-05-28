@@ -29,11 +29,721 @@ import {
   UserPlus,
   Users,
   X,
+  MoreVertical,
+  Menu,
+  Search,
+  Sun,
+  Moon,
+  ChevronRight,
 } from "lucide-react";
 import BrandLogo from "./BrandLogo";
 import MapShell from "./MapShell";
+import AuthModal from "./AuthModal";
+import ReportFormModal from "./ReportFormModal";
+import BusinessFormModal from "./BusinessFormModal";
+import * as turf from "@turf/turf";
+
+// Configuración de Ciudades de Colombia (Centros, límites geográficos y semillas terrestres de alta delincuencia)
+type CityConfig = {
+  name: string;
+  center: [number, number];
+  bounds: [[number, number], [number, number]];
+  seeds: { name: string; lat: number; lng: number }[];
+  demoBusinesses: { name: string; category: string; lat: number; lng: number }[];
+};
+
+const CITIES_CONFIG: Record<string, CityConfig> = {
+  Cartagena: {
+    name: "Cartagena",
+    center: [-75.535, 10.405],
+    bounds: [
+      [-75.59, 10.34],
+      [-75.47, 10.45],
+    ],
+    seeds: [
+      { name: "El Pozón", lat: 10.4020, lng: -75.4780 },
+      { name: "Olaya Herrera", lat: 10.3950, lng: -75.4950 },
+      { name: "Boston", lat: 10.4230, lng: -75.5200 },
+      { name: "El Líbano", lat: 10.4120, lng: -75.5120 },
+      { name: "Torices", lat: 10.4320, lng: -75.5280 },
+      { name: "Chambacú", lat: 10.4250, lng: -75.5370 },
+      { name: "Marbella", lat: 10.4390, lng: -75.5290 },
+      { name: "Crespo", lat: 10.4445, lng: -75.5180 },
+      { name: "Manga", lat: 10.4132, lng: -75.5342 },
+      { name: "Bocagrande", lat: 10.4075, lng: -75.5555 },
+      { name: "San Fernando", lat: 10.3870, lng: -75.4880 },
+      { name: "La Esperanza", lat: 10.4010, lng: -75.5030 },
+      { name: "Las Gaviotas", lat: 10.3880, lng: -75.4790 },
+      { name: "Los Ejecutivos", lat: 10.3950, lng: -75.4850 },
+      { name: "Ternera", lat: 10.3700, lng: -75.4750 },
+      { name: "Socorro", lat: 10.3760, lng: -75.4820 },
+      { name: "Cabrero", lat: 10.4345, lng: -75.5360 },
+      { name: "Lo Amador", lat: 10.4245, lng: -75.5305 },
+      { name: "Bruselas", lat: 10.4050, lng: -75.5220 },
+      { name: "Zaragocilla", lat: 10.3990, lng: -75.5160 },
+      { name: "Blas de Lezo", lat: 10.3890, lng: -75.4980 },
+      { name: "Nelson Mandela", lat: 10.3620, lng: -75.5050 },
+      { name: "Chile", lat: 10.4080, lng: -75.5250 },
+      { name: "Amberes", lat: 10.4100, lng: -75.5280 },
+      { name: "San Francisco", lat: 10.4360, lng: -75.5200 },
+    ],
+    demoBusinesses: [
+      { name: "Cafeteria Baluarte", category: "Cafe", lat: 10.4252, lng: -75.5487 },
+      { name: "Farmacia Manga 24h", category: "Farmacia", lat: 10.4109, lng: -75.5362 },
+    ]
+  },
+  Bogotá: {
+    name: "Bogotá",
+    center: [-74.0721, 4.6097],
+    bounds: [
+      [-74.25, 4.45],
+      [-73.98, 4.83],
+    ],
+    seeds: [
+      { name: "Kennedy", lat: 4.6300, lng: -74.1500 },
+      { name: "Chapinero", lat: 4.6480, lng: -74.0600 },
+      { name: "Bosa", lat: 4.6000, lng: -74.1800 },
+      { name: "Ciudad Bolívar", lat: 4.5700, lng: -74.1400 },
+      { name: "Suba", lat: 4.7400, lng: -74.0900 },
+      { name: "San Victorino", lat: 4.6020, lng: -74.0780 },
+      { name: "Teusaquillo", lat: 4.6350, lng: -74.0850 },
+      { name: "Engativá", lat: 4.7000, lng: -74.1100 },
+      { name: "Usaquén", lat: 4.7050, lng: -74.0300 },
+      { name: "Santa Fe", lat: 4.6050, lng: -74.0700 },
+      { name: "Fontibón", lat: 4.6750, lng: -74.1450 },
+      { name: "San Cristóbal", lat: 4.5750, lng: -74.0900 },
+      { name: "Usme", lat: 4.5100, lng: -74.1200 },
+      { name: "Tunjuelito", lat: 4.5850, lng: -74.1350 },
+      { name: "Puente Aranda", lat: 4.6200, lng: -74.1150 },
+      { name: "Antonio Nariño", lat: 4.5900, lng: -74.1000 },
+      { name: "Rafael Uribe Uribe", lat: 4.5650, lng: -74.1100 },
+      { name: "Barrios Unidos", lat: 4.6650, lng: -74.0750 },
+      { name: "Mártires", lat: 4.6080, lng: -74.0900 },
+    ],
+    demoBusinesses: [
+      { name: "Punto Seguro Chapinero", category: "Cafe", lat: 4.6495, lng: -74.0620 },
+      { name: "Farmacia Bosa 24h", category: "Farmacia", lat: 4.6015, lng: -74.1780 },
+    ]
+  },
+  Medellín: {
+    name: "Medellín",
+    center: [-75.5670, 6.2518],
+    bounds: [
+      [-75.68, 6.13],
+      [-75.50, 6.35],
+    ],
+    seeds: [
+      { name: "El Poblado", lat: 6.2100, lng: -75.5650 },
+      { name: "Laureles", lat: 6.2450, lng: -75.5900 },
+      { name: "Belén", lat: 6.2250, lng: -75.5950 },
+      { name: "Aranjuez", lat: 6.2750, lng: -75.5600 },
+      { name: "San Javier (Comuna 13)", lat: 6.2500, lng: -75.6150 },
+      { name: "Candelaria (Centro)", lat: 6.2480, lng: -75.5680 },
+      { name: "Manrique", lat: 6.2720, lng: -75.5450 },
+      { name: "Robledo", lat: 6.2780, lng: -75.5950 },
+      { name: "Guayabal", lat: 6.2080, lng: -75.5800 },
+      { name: "La América", lat: 6.2530, lng: -75.6020 },
+      { name: "Castilla", lat: 6.2950, lng: -75.5750 },
+      { name: "Doce de Octubre", lat: 6.3050, lng: -75.5850 },
+      { name: "Villa Hermosa", lat: 6.2580, lng: -75.5450 },
+      { name: "Buenos Aires", lat: 6.2380, lng: -75.5480 },
+      { name: "Santa Cruz", lat: 6.2980, lng: -75.5520 },
+      { name: "Popular", lat: 6.3020, lng: -75.5450 },
+    ],
+    demoBusinesses: [
+      { name: "Estación Segura Poblado", category: "Cafe", lat: 6.2120, lng: -75.5670 },
+      { name: "Droguería Laureles", category: "Farmacia", lat: 6.2440, lng: -75.5880 },
+    ]
+  },
+  Cali: {
+    name: "Cali",
+    center: [-76.5225, 3.4372],
+    bounds: [
+      [-76.60, 3.32],
+      [-76.45, 3.50],
+    ],
+    seeds: [
+      { name: "Aguablanca", lat: 3.4200, lng: -76.4800 },
+      { name: "Siloé", lat: 3.4250, lng: -76.5600 },
+      { name: "Ciudad Jardín", lat: 3.3700, lng: -76.5300 },
+      { name: "El Limonar", lat: 3.4000, lng: -76.5355 },
+      { name: "Centro", lat: 3.4450, lng: -76.5250 },
+      { name: "San Fernando", lat: 3.4300, lng: -76.5400 },
+      { name: "Alameda", lat: 3.4380, lng: -76.5300 },
+      { name: "Menga", lat: 3.4850, lng: -76.5200 },
+      { name: "Lido", lat: 3.4260, lng: -76.5480 },
+      { name: "Tequendama", lat: 3.4280, lng: -76.5410 },
+      { name: "Prados del Norte", lat: 3.4680, lng: -76.5180 },
+      { name: "El Peñón", lat: 3.4480, lng: -76.5420 },
+      { name: "San Antonio", lat: 3.4440, lng: -76.5400 },
+      { name: "Terrón Colorado", lat: 3.4550, lng: -76.5650 },
+    ],
+    demoBusinesses: [
+      { name: "Boulevard del Río Safe", category: "Cafe", lat: 3.4460, lng: -76.5260 },
+      { name: "Farmacia San Fernando", category: "Farmacia", lat: 3.4310, lng: -76.5390 },
+    ]
+  },
+  Barranquilla: {
+    name: "Barranquilla",
+    center: [-74.8050, 10.9850],
+    bounds: [
+      [-74.88, 10.90],
+      [-74.75, 11.05],
+    ],
+    seeds: [
+      { name: "Centro", lat: 10.9800, lng: -74.7800 },
+      { name: "Soledad", lat: 10.9200, lng: -74.7600 },
+      { name: "Alto Prado", lat: 11.0050, lng: -74.8100 },
+      { name: "Boston", lat: 10.9900, lng: -74.7950 },
+      { name: "Rebolo", lat: 10.9650, lng: -74.7800 },
+      { name: "El Prado", lat: 10.9980, lng: -74.8050 },
+      { name: "Miramar", lat: 11.0200, lng: -74.8250 },
+      { name: "Las Nieves", lat: 10.9550, lng: -74.7850 },
+      { name: "Chiquinquirá", lat: 10.9750, lng: -74.7900 },
+      { name: "San Felipe", lat: 10.9880, lng: -74.8220 },
+      { name: "El Silencio", lat: 10.9920, lng: -74.8150 },
+      { name: "Riomar", lat: 11.0180, lng: -74.8150 },
+      { name: "El Golf", lat: 11.0100, lng: -74.8180 },
+    ],
+    demoBusinesses: [
+      { name: "Cafe Prado Seguro", category: "Cafe", lat: 11.0060, lng: -74.8080 },
+      { name: "Farmacia Alto Prado", category: "Farmacia", lat: 11.0040, lng: -74.8120 },
+    ]
+  },
+  Madrid: {
+    name: "Madrid",
+    center: [-3.70379, 40.41678],
+    bounds: [
+      [-3.85, 40.3],
+      [-3.55, 40.5],
+    ],
+    seeds: [
+      { name: "Carabanchel", lat: 40.3800, lng: -3.7300 },
+      { name: "Puente de Vallecas", lat: 40.3950, lng: -3.6650 },
+      { name: "Tetuán", lat: 40.4600, lng: -3.7000 },
+      { name: "Usera", lat: 40.3850, lng: -3.7000 },
+      { name: "Centro", lat: 40.4150, lng: -3.7050 },
+    ],
+    demoBusinesses: [
+      { name: "Café Seguro Puerta del Sol", category: "Cafe", lat: 40.4170, lng: -3.7030 },
+      { name: "Farmacia Carabanchel 24h", category: "Farmacia", lat: 40.3820, lng: -3.7280 },
+    ]
+  },
+  Barcelona: {
+    name: "Barcelona",
+    center: [2.1734, 41.3851],
+    bounds: [
+      [2.05, 41.3],
+      [2.3, 41.45],
+    ],
+    seeds: [
+      { name: "El Raval", lat: 41.3780, lng: 2.1680 },
+      { name: "Gòtic", lat: 41.3820, lng: 2.1770 },
+      { name: "Nou Barris", lat: 41.4420, lng: 2.1780 },
+      { name: "Sants-Montjuïc", lat: 41.3700, lng: 2.1400 },
+      { name: "Ciutat Vella", lat: 41.3800, lng: 2.1730 },
+    ],
+    demoBusinesses: [
+      { name: "Punt Segur Raval", category: "Cafe", lat: 41.3790, lng: 2.1690 },
+      { name: "Farmàcia Gòtic 24h", category: "Farmacia", lat: 41.3815, lng: 2.1760 },
+    ]
+  },
+  "Buenos Aires": {
+    name: "Buenos Aires",
+    center: [-58.3816, -34.6037],
+    bounds: [
+      [-58.55, -34.7],
+      [-58.33, -34.5],
+    ],
+    seeds: [
+      { name: "Constitución", lat: -34.6270, lng: -58.3800 },
+      { name: "La Boca", lat: -34.6350, lng: -58.3600 },
+      { name: "San Telmo", lat: -34.6210, lng: -58.3720 },
+      { name: "Palermo", lat: -34.5850, lng: -58.4200 },
+      { name: "Recoleta", lat: -34.5900, lng: -58.3950 },
+    ],
+    demoBusinesses: [
+      { name: "Café Seguro San Telmo", category: "Cafe", lat: -34.6205, lng: -58.3715 },
+      { name: "Farmacia Constitución 24h", category: "Farmacia", lat: -34.6265, lng: -58.3790 },
+    ]
+  },
+  Santiago: {
+    name: "Santiago",
+    center: [-70.6483, -33.4489],
+    bounds: [
+      [-70.8, -33.6],
+      [-70.5, -33.35],
+    ],
+    seeds: [
+      { name: "Estación Central", lat: -33.4550, lng: -70.7000 },
+      { name: "Santiago Centro", lat: -33.4450, lng: -70.6550 },
+      { name: "La Florida", lat: -33.5200, lng: -70.5800 },
+      { name: "Maipú", lat: -33.5100, lng: -70.7600 },
+      { name: "Providencia", lat: -33.4280, lng: -70.6150 },
+    ],
+    demoBusinesses: [
+      { name: "Punto Seguro Providencia", category: "Cafe", lat: -33.4290, lng: -70.6140 },
+      { name: "Farmacia Estación Central", category: "Farmacia", lat: -33.4560, lng: -70.6990 },
+    ]
+  },
+  Lima: {
+    name: "Lima",
+    center: [-77.0428, -12.0464],
+    bounds: [
+      [-77.2, -12.2],
+      [-76.9, -11.9],
+    ],
+    seeds: [
+      { name: "La Victoria", lat: -12.0650, lng: -77.0180 },
+      { name: "Centro Histórico", lat: -12.0450, lng: -77.0300 },
+      { name: "Miraflores", lat: -12.1200, lng: -77.0300 },
+      { name: "Barranco", lat: -12.1450, lng: -77.0220 },
+      { name: "San Juan de Lurigancho", lat: -12.0000, lng: -76.9900 },
+    ],
+    demoBusinesses: [
+      { name: "Café Miraflores Seguro", category: "Cafe", lat: -12.1190, lng: -77.0295 },
+      { name: "Farmacia La Victoria 24h", category: "Farmacia", lat: -12.0645, lng: -77.0175 },
+    ]
+  },
+  Quito: {
+    name: "Quito",
+    center: [-78.4678, -0.1807],
+    bounds: [
+      [-78.6, -0.3],
+      [-78.3, -0.05],
+    ],
+    seeds: [
+      { name: "La Mariscal", lat: -0.2030, lng: -78.4900 },
+      { name: "Centro Histórico", lat: -0.2200, lng: -78.5120 },
+      { name: "Guamaní", lat: -0.2950, lng: -78.5550 },
+      { name: "Carcelén", lat: -0.0950, lng: -78.4800 },
+      { name: "Iñaquito", lat: -0.1750, lng: -78.4850 },
+    ],
+    demoBusinesses: [
+      { name: "Estación Segura Carolina", category: "Cafe", lat: -0.1760, lng: -78.4840 },
+      { name: "Farmacia La Mariscal 24h", category: "Farmacia", lat: -0.2025, lng: -78.4895 },
+    ]
+  },
+  Caracas: {
+    name: "Caracas",
+    center: [-66.9036, 10.4806],
+    bounds: [
+      [-67.05, 10.4],
+      [-66.75, 10.55],
+    ],
+    seeds: [
+      { name: "Libertador (El Silencio)", lat: 10.5050, lng: -66.9180 },
+      { name: "Chacao", lat: 10.4900, lng: -66.8550 },
+      { name: "Sucre (Petare)", lat: 10.4780, lng: -66.8000 },
+      { name: "Catia", lat: 10.5200, lng: -66.9500 },
+      { name: "Sabana Grande", lat: 10.4950, lng: -66.8800 },
+    ],
+    demoBusinesses: [
+      { name: "Local Seguro Chacao", category: "Cafe", lat: 10.4895, lng: -66.8545 },
+      { name: "Farmacia Sabana Grande 24h", category: "Farmacia", lat: 10.4945, lng: -66.8790 },
+    ]
+  },
+  Montevideo: {
+    name: "Montevideo",
+    center: [-56.1645, -34.9011],
+    bounds: [
+      [-56.3, -35.0],
+      [-56.0, -34.8],
+    ],
+    seeds: [
+      { name: "Ciudad Vieja", lat: -34.9060, lng: -56.2000 },
+      { name: "Tres Cruces", lat: -34.8930, lng: -56.1650 },
+      { name: "Pocitos", lat: -34.9120, lng: -56.1500 },
+      { name: "Centro", lat: -34.9020, lng: -56.1900 },
+      { name: "Carrasco", lat: -34.8880, lng: -56.0550 },
+    ],
+    demoBusinesses: [
+      { name: "Café Tres Cruces Seguro", category: "Cafe", lat: -34.8925, lng: -56.1640 },
+      { name: "Farmacia Pocitos 24h", category: "Farmacia", lat: -34.9115, lng: -56.1490 },
+    ]
+  },
+  Asuncion: {
+    name: "Asunción",
+    center: [-57.5759, -25.2637],
+    bounds: [
+      [-57.7, -25.35],
+      [-57.45, -25.18],
+    ],
+    seeds: [
+      { name: "La Catedral (Centro)", lat: -25.2810, lng: -57.6350 },
+      { name: "Villa Morra", lat: -25.2950, lng: -57.5800 },
+      { name: "Sajonia", lat: -25.2850, lng: -57.6550 },
+      { name: "Trinidad", lat: -25.2550, lng: -57.5750 },
+      { name: "San Pablo", lat: -25.3200, lng: -57.5850 },
+    ],
+    demoBusinesses: [
+      { name: "Punto Seguro Villa Morra", category: "Cafe", lat: -25.2945, lng: -57.5790 },
+      { name: "Farmacia Centro 24h", category: "Farmacia", lat: -25.2805, lng: -57.6340 },
+    ]
+  },
+  "La Paz": {
+    name: "La Paz",
+    center: [-68.1193, -16.4897],
+    bounds: [
+      [-68.2, -16.55],
+      [-68.0, -16.4],
+    ],
+    seeds: [
+      { name: "Sopocachi", lat: -16.5100, lng: -68.1250 },
+      { name: "San Pedro", lat: -16.4980, lng: -68.1400 },
+      { name: "Miraflores", lat: -16.4920, lng: -68.1150 },
+      { name: "Zona Sur (Calacoto)", lat: -16.5400, lng: -68.0850 },
+      { name: "El Alto (Ceja)", lat: -16.5050, lng: -68.1600 },
+    ],
+    demoBusinesses: [
+      { name: "Café Sopocachi Seguro", category: "Cafe", lat: -16.5095, lng: -68.1245 },
+      { name: "Droguería Zona Sur", category: "Farmacia", lat: -16.5395, lng: -68.0845 },
+    ]
+  },
+  "Rio de Janeiro": {
+    name: "Rio de Janeiro",
+    center: [-43.1729, -22.9068],
+    bounds: [
+      [-43.4, -23.05],
+      [-43.1, -22.8],
+    ],
+    seeds: [
+      { name: "Centro", lat: -22.9020, lng: -43.1800 },
+      { name: "Lapa", lat: -22.9130, lng: -43.1820 },
+      { name: "Copacabana", lat: -22.9700, lng: -43.1850 },
+      { name: "Ipanema", lat: -22.9840, lng: -43.2050 },
+      { name: "Rocinha", lat: -22.9880, lng: -43.2450 },
+    ],
+    demoBusinesses: [
+      { name: "Ponto Seguro Copacabana", category: "Cafe", lat: -22.9695, lng: -43.1840 },
+      { name: "Drogaria Lapa 24h", category: "Farmacia", lat: -22.9125, lng: -43.1810 },
+    ]
+  },
+  "São Paulo": {
+    name: "São Paulo",
+    center: [-46.6333, -23.5505],
+    bounds: [
+      [-46.85, -23.7],
+      [-46.45, -23.4],
+    ],
+    seeds: [
+      { name: "Sé (Centro)", lat: -23.5500, lng: -46.6340 },
+      { name: "Pinheiros", lat: -23.5650, lng: -46.6850 },
+      { name: "Jardins", lat: -23.5680, lng: -46.6600 },
+      { name: "República", lat: -23.5430, lng: -46.6420 },
+      { name: "Capão Redondo", lat: -23.6600, lng: -46.7800 },
+    ],
+    demoBusinesses: [
+      { name: "Café Seguro Pinheiros", category: "Cafe", lat: -23.5645, lng: -46.6840 },
+      { name: "Drogaria Jardins 24h", category: "Farmacia", lat: -23.5675, lng: -46.6590 },
+    ]
+  },
+  Georgetown: {
+    name: "Georgetown",
+    center: [-58.1551, 6.8013],
+    bounds: [
+      [-58.2, 6.75],
+      [-58.1, 6.85],
+    ],
+    seeds: [
+      { name: "Bourda", lat: 6.8050, lng: -58.1500 },
+      { name: "Charlestown", lat: 6.7980, lng: -58.1620 },
+      { name: "Kitty", lat: 6.8200, lng: -58.1400 },
+      { name: "Lacytown", lat: 6.8080, lng: -58.1550 },
+      { name: "Kingston", lat: 6.8180, lng: -58.1600 },
+    ],
+    demoBusinesses: [
+      { name: "Safe Haven Kingston", category: "Cafe", lat: 6.8175, lng: -58.1590 },
+      { name: "Pharmacy Kitty 24h", category: "Farmacia", lat: 6.8195, lng: -58.1390 },
+    ]
+  },
+  Paramaribo: {
+    name: "Paramaribo",
+    center: [-55.1668, 5.8520],
+    bounds: [
+      [-55.25, 5.8],
+      [-55.1, 5.9],
+    ],
+    seeds: [
+      { name: "Centrum", lat: 5.8250, lng: -55.1600 },
+      { name: "Rainville", lat: 5.8500, lng: -55.1500 },
+      { name: "Blauwgrond", lat: 5.8750, lng: -55.1450 },
+      { name: "Beekhuizen", lat: 5.8050, lng: -55.1800 },
+      { name: "Weg naar Zee", lat: 5.8650, lng: -55.2200 },
+    ],
+    demoBusinesses: [
+      { name: "Safe Spot Rainville", category: "Cafe", lat: 5.8495, lng: -55.1490 },
+      { name: "Apotheek Centrum 24h", category: "Farmacia", lat: 5.8245, lng: -55.1590 },
+    ]
+  },
+  CDMX: {
+    name: "CDMX",
+    center: [-99.1332, 19.4326],
+    bounds: [
+      [-99.3, 19.25],
+      [-99.0, 19.55],
+    ],
+    seeds: [
+      { name: "Tepito", lat: 19.4440, lng: -99.1270 },
+      { name: "Doctores", lat: 19.4220, lng: -99.1450 },
+      { name: "Roma Norte", lat: 19.4180, lng: -99.1620 },
+      { name: "Polanco", lat: 19.4330, lng: -99.2000 },
+      { name: "Iztapalapa", lat: 19.3550, lng: -99.0600 },
+    ],
+    demoBusinesses: [
+      { name: "Café Seguro Roma", category: "Cafe", lat: 19.4175, lng: -99.1615 },
+      { name: "Farmacia Doctores 24h", category: "Farmacia", lat: 19.4215, lng: -99.1440 },
+    ]
+  },
+  "New York": {
+    name: "New York",
+    center: [-74.0060, 40.7128],
+    bounds: [
+      [-74.25, 40.5],
+      [-73.7, 40.9],
+    ],
+    seeds: [
+      { name: "Times Square", lat: 40.7580, lng: -74.0060 },
+      { name: "Mott Haven (Bronx)", lat: 40.8080, lng: -73.9280 },
+      { name: "Williamsburg (Brooklyn)", lat: 40.7080, lng: -73.9570 },
+      { name: "Harlem", lat: 40.8080, lng: -73.9480 },
+      { name: "Astoria (Queens)", lat: 40.7650, lng: -73.9250 },
+    ],
+    demoBusinesses: [
+      { name: "Midtown Safe Café", category: "Cafe", lat: 40.7575, lng: -74.0050 },
+      { name: "Brooklyn Pharmacy 24h", category: "Farmacia", lat: 40.7075, lng: -73.9560 },
+    ]
+  },
+  Toronto: {
+    name: "Toronto",
+    center: [-79.3832, 43.6532],
+    bounds: [
+      [-79.6, 43.55],
+      [-79.15, 43.85],
+    ],
+    seeds: [
+      { name: "Downtown", lat: 43.6540, lng: -79.3830 },
+      { name: "Scarborough", lat: 43.7730, lng: -79.2580 },
+      { name: "Etobicoke", lat: 43.6440, lng: -79.5430 },
+      { name: "North York", lat: 43.7610, lng: -79.4110 },
+      { name: "Queen West", lat: 43.6480, lng: -79.4000 },
+    ],
+    demoBusinesses: [
+      { name: "Queen West Safe Haven", category: "Cafe", lat: 43.6475, lng: -79.3990 },
+      { name: "Downtown Pharma 24h", category: "Farmacia", lat: 43.6535, lng: -79.3820 },
+    ]
+  },
+  "Ciudad de Panama": {
+    name: "Ciudad de Panamá",
+    center: [-79.5198, 8.9824],
+    bounds: [
+      [-79.65, 8.9],
+      [-79.35, 9.1],
+    ],
+    seeds: [
+      { name: "Casco Viejo", lat: 8.9520, lng: -79.5340 },
+      { name: "El Chorrillo", lat: 8.9540, lng: -79.5440 },
+      { name: "Bella Vista", lat: 8.9780, lng: -79.5250 },
+      { name: "San Francisco", lat: 8.9880, lng: -79.5020 },
+      { name: "Calidonia", lat: 8.9680, lng: -79.5380 },
+    ],
+    demoBusinesses: [
+      { name: "Café Seguro Bella Vista", category: "Cafe", lat: 8.9775, lng: -79.5240 },
+      { name: "Farmacia El Chorrillo 24h", category: "Farmacia", lat: 8.9535, lng: -79.5430 },
+    ]
+  },
+  "San Jose": {
+    name: "San José",
+    center: [-84.0907, 9.9281],
+    bounds: [
+      [-84.2, 9.85],
+      [-84.0, 10.0],
+    ],
+    seeds: [
+      { name: "Centro", lat: 9.9330, lng: -84.0800 },
+      { name: "San Pedro", lat: 9.9320, lng: -84.0500 },
+      { name: "Escazú", lat: 9.9200, lng: -84.1400 },
+      { name: "La Carpio", lat: 9.9600, lng: -84.1200 },
+      { name: "Desamparados", lat: 9.8980, lng: -84.0650 },
+    ],
+    demoBusinesses: [
+      { name: "Punto Seguro Escazú", category: "Cafe", lat: 9.9195, lng: -84.1390 },
+      { name: "Farmacia Centro 24h", category: "Farmacia", lat: 9.9325, lng: -84.0790 },
+    ]
+  },
+  Managua: {
+    name: "Managua",
+    center: [-86.2362, 12.1150],
+    bounds: [
+      [-86.35, 12.05],
+      [-86.15, 12.2],
+    ],
+    seeds: [
+      { name: "Mercado Oriental", lat: 12.1450, lng: -86.2650 },
+      { name: "Centro Histórico", lat: 12.1550, lng: -86.2750 },
+      { name: "Altamira", lat: 12.1220, lng: -86.2500 },
+      { name: "Linda Vista", lat: 12.1500, lng: -86.3000 },
+      { name: "Bello Horizonte", lat: 12.1400, lng: -86.2300 },
+    ],
+    demoBusinesses: [
+      { name: "Local Seguro Altamira", category: "Cafe", lat: 12.1215, lng: -86.2490 },
+      { name: "Farmacia Linda Vista 24h", category: "Farmacia", lat: 12.1495, lng: -86.2990 },
+    ]
+  },
+  Tegucigalpa: {
+    name: "Tegucigalialpa",
+    center: [-87.2068, 14.0723],
+    bounds: [
+      [-87.3, 13.98],
+      [-87.1, 14.15],
+    ],
+    seeds: [
+      { name: "Centro", lat: 14.1020, lng: -87.2060 },
+      { name: "Comayagüela", lat: 14.0950, lng: -87.2200 },
+      { name: "Colonia Palmira", lat: 14.1000, lng: -87.1850 },
+      { name: "Suyapa", lat: 14.0820, lng: -87.1650 },
+      { name: "El Pedregal", lat: 14.0680, lng: -87.2350 },
+    ],
+    demoBusinesses: [
+      { name: "Café Seguro Palmira", category: "Cafe", lat: 14.0995, lng: -87.1840 },
+      { name: "Farmacia Comayagüela 24h", category: "Farmacia", lat: 14.0945, lng: -87.2190 },
+    ]
+  },
+  "San Salvador": {
+    name: "San Salvador",
+    center: [-89.2182, 13.6929],
+    bounds: [
+      [-89.3, 13.62],
+      [-89.1, 13.75],
+    ],
+    seeds: [
+      { name: "Centro Histórico", lat: 13.6980, lng: -89.1900 },
+      { name: "San Benito", lat: 13.6920, lng: -89.2380 },
+      { name: "Soyapango", lat: 13.7150, lng: -89.1400 },
+      { name: "Mejicanos", lat: 13.7300, lng: -89.2100 },
+      { name: "Santa Tecla", lat: 13.6780, lng: -89.2880 },
+    ],
+    demoBusinesses: [
+      { name: "Punto Seguro San Benito", category: "Cafe", lat: 13.6915, lng: -89.2370 },
+      { name: "Farmacia Soyapango 24h", category: "Farmacia", lat: 13.7145, lng: -89.1390 },
+    ]
+  },
+  Guatemala: {
+    name: "Ciudad de Guatemala",
+    center: [-90.5069, 14.6349],
+    bounds: [
+      [-90.6, 14.5],
+      [-90.4, 14.7],
+    ],
+    seeds: [
+      { name: "Zona 1 (Centro)", lat: 14.6400, lng: -90.5120 },
+      { name: "Zona 10 (Viva)", lat: 14.6000, lng: -90.5050 },
+      { name: "Zona 3 (El Gallito)", lat: 14.6320, lng: -90.5300 },
+      { name: "Zona 18", lat: 14.6800, lng: -90.4700 },
+      { name: "Zona 4 (Cuatro Grados)", lat: 14.6220, lng: -90.5150 },
+    ],
+    demoBusinesses: [
+      { name: "Café Seguro Zona 4", category: "Cafe", lat: 14.6215, lng: -90.5140 },
+      { name: "Farmacia Zona 10 24h", category: "Farmacia", lat: 14.5995, lng: -90.5040 },
+    ]
+  },
+  Belmopan: {
+    name: "Belmopán",
+    center: [-88.7735, 17.2510],
+    bounds: [
+      [-88.85, 17.2],
+      [-88.7, 17.3],
+    ],
+    seeds: [
+      { name: "City Center", lat: 17.2520, lng: -88.7730 },
+      { name: "Salvapan", lat: 17.2450, lng: -88.7880 },
+      { name: "Las Flores", lat: 17.2600, lng: -88.7900 },
+      { name: "Ring Road", lat: 17.2550, lng: -88.7650 },
+      { name: "Mountain View", lat: 17.2400, lng: -88.7600 },
+    ],
+    demoBusinesses: [
+      { name: "Belmopan Safe Haven", category: "Cafe", lat: 17.2515, lng: -88.7720 },
+      { name: "Central Pharmacy 24h", category: "Farmacia", lat: 17.2545, lng: -88.7640 },
+    ]
+  }
+};
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8001";
+
+function generateDemoReports(cityKey: string): ReportItem[] {
+  const config = CITIES_CONFIG[cityKey] || CITIES_CONFIG["Cartagena"];
+  return Array.from({ length: 25 }, (_, i) => {
+    const seed = config.seeds[i % config.seeds.length];
+    // Perturbación muy pequeña (máx ~150 metros) para garantizar caer en tierra firme
+    const lat = seed.lat + (Math.random() - 0.5) * 0.003;
+    const lng = seed.lng + (Math.random() - 0.5) * 0.003;
+    return {
+      id: `demo-r-${cityKey}-${i}`,
+      title: `Incidente ${i + 1}`,
+      description: `Reporte automático de prueba en ${seed.name}`,
+      type: "INSTANTANEO" as const,
+      status: Math.random() > 0.5 ? "VERIFICADO" : "NO_VERIFICADO",
+      category: i % 3 === 0 ? "Hurto" : i % 3 === 1 ? "Acoso" : "Iluminacion",
+      zone: seed.name,
+      time: "12:00 PM",
+      author: "User",
+      authorRank: "Ciudadano",
+      children: 0,
+      source: { status: "PENDIENTE", label: "demo", media: "demo" },
+      votes: { yes: 0, no: 0, unknown: 0 },
+      lat: lat,
+      lng: lng,
+      isWomensModeRelevant: Math.random() > 0.5,
+    };
+  });
+}
+
+function generateDemoBusinesses(cityKey: string): BusinessItem[] {
+  const config = CITIES_CONFIG[cityKey] || CITIES_CONFIG["Cartagena"];
+  return config.demoBusinesses.map((b, i) => ({
+    id: `demo-b-${cityKey}-${i}`,
+    name: b.name,
+    category: b.category,
+    status: "APROBADO",
+    label: "Punto seguro patrocinado",
+    zone: b.name.split(" ").slice(-1)[0],
+    score: 10 + i * 5,
+    lat: b.lat,
+    lng: b.lng,
+  }));
+}
+
+function getRankProgress(reputation: number) {
+  if (reputation < 10) {
+    return {
+      nextRank: "Colaborador",
+      threshold: 10,
+      progress: (reputation / 10) * 100,
+      pointsNeeded: 10 - reputation,
+    };
+  } else if (reputation < 30) {
+    return {
+      nextRank: "Verificador",
+      threshold: 30,
+      progress: ((reputation - 10) / (30 - 10)) * 100,
+      pointsNeeded: 30 - reputation,
+    };
+  } else if (reputation < 100) {
+    return {
+      nextRank: "Embajador",
+      threshold: 100,
+      progress: ((reputation - 30) / (100 - 30)) * 100,
+      pointsNeeded: 100 - reputation,
+    };
+  } else {
+    return {
+      nextRank: "Máximo Rango",
+      threshold: 100,
+      progress: 100,
+      pointsNeeded: 0,
+    };
+  }
+}
 
 type UserPublic = {
   id: string;
@@ -86,10 +796,10 @@ type GeocodeSuggestion = {
   lon: string;
 };
 
-async function geocodeNominatim(query: string): Promise<GeocodeSuggestion[]> {
+async function geocodeNominatim(query: string, city: string = "Cartagena"): Promise<GeocodeSuggestion[]> {
   if (query.trim().length < 3) return [];
   try {
-    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query + ", Cartagena, Colombia")}&format=json&limit=5`;
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query + ", " + city + ", Colombia")}&format=json&limit=5`;
     const res = await fetch(url, { headers: { "Accept-Language": "es" } });
     return (await res.json()) as GeocodeSuggestion[];
   } catch {
@@ -97,97 +807,96 @@ async function geocodeNominatim(query: string): Promise<GeocodeSuggestion[]> {
   }
 }
 
-const demoReports: ReportItem[] = [
-  {
-    id: "demo-r1",
-    title: "Hurto reportado cerca de parada",
-    description: "Reporte inicial del piloto en Centro.",
-    type: "INSTANTANEO",
-    status: "NO_VERIFICADO",
-    category: "Hurto",
-    zone: "Centro",
-    time: "10:15 AM",
-    author: "LuzNorte",
-    authorRank: "Colaborador",
-    children: 2,
-    source: { status: "PENDIENTE", label: "en revision", media: "El Universal" },
-    votes: { yes: 2, no: 0, unknown: 1 },
-    lat: 10.4236,
-    lng: -75.5478,
-    isWomensModeRelevant: false,
-  },
-  {
-    id: "demo-r2",
-    title: "Intento de atraco confirmado por medio local",
-    description: "Verificado con una noticia local.",
-    type: "OFICIAL",
-    status: "VERIFICADO",
-    category: "Alerta",
-    zone: "Manga",
-    time: "08:30 PM",
-    author: "AdminRuta",
-    authorRank: "Embajador",
-    children: 0,
-    source: { status: "ACEPTADO", label: "El Universal / 10 mayo 2026", media: "El Universal" },
-    votes: { yes: 11, no: 1, unknown: 0 },
-    lat: 10.4097,
-    lng: -75.5338,
-  },
-  {
-    id: "demo-r3",
-    title: "Zona con poca iluminacion",
-    description: "Tramo reportado por usuarios frecuentes.",
-    type: "INSTANTANEO",
-    status: "COMUNITARIAMENTE_CONFIABLE",
-    category: "Iluminacion",
-    zone: "Getsemani",
-    time: "11:45 PM",
-    author: "PatioClaro",
-    authorRank: "Verificador",
-    children: 4,
-    source: { status: "RECHAZADO", label: "fuente no coincide", media: "Blog anonimo" },
-    votes: { yes: 7, no: 1, unknown: 0 },
-    lat: 10.4211,
-    lng: -75.5442,
-    isWomensModeRelevant: true,
-  },
-];
+function roleLabel(role: string) {
+  if (role === "BUSINESS") return "Empresa";
+  if (role === "ADMIN") return "Admin";
+  return "Ciudadano";
+}
 
-const demoBusinesses: BusinessItem[] = [
-  {
-    id: "demo-b1",
-    name: "Cafeteria Baluarte",
-    category: "Cafe",
-    status: "PENDIENTE_VERIFICACION",
-    label: "Campana pagada pendiente",
-    zone: "Centro",
-    score: 6,
-    lat: 10.4252,
-    lng: -75.5487,
-  },
-  {
-    id: "demo-b2",
-    name: "Farmacia Manga 24h",
-    category: "Farmacia",
-    status: "APROBADO",
-    label: "Punto seguro patrocinado",
-    zone: "Manga",
-    score: 14,
-    lat: 10.4109,
-    lng: -75.5362,
-  },
-];
+function rankLabel(rank: string) {
+  if (rank === "EMBAJADOR") return "Embajador";
+  if (rank === "VERIFICADOR") return "Verificador";
+  if (rank === "COLABORADOR") return "Colaborador";
+  return "Ciudadano";
+}
+
+function statusLabel(status: string) {
+  if (status === "VERIFICADO") return "Verificado";
+  if (status === "COMUNITARIAMENTE_CONFIABLE") return "Confiable";
+  if (status === "RECHAZADO") return "Rechazado";
+  if (status === "OCULTO") return "Oculto";
+  return "No verificado";
+}
+
+function mergeById<T extends { id: string }>(demo: T[], mapped: T[], extra: T[]) {
+  const map = new Map<string, T>();
+  [...demo, ...extra, ...mapped].forEach((item) => map.set(item.id, item));
+  return Array.from(map.values());
+}
+
+function mapApiReport(report: Record<string, unknown>): ReportItem {
+  const date = report.occurred_at ? new Date(String(report.occurred_at)) : new Date();
+  const timeStr = date.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", hour12: true });
+
+  return {
+    id: String(report.id),
+    title: String(report.title),
+    description: String(report.description),
+    type: String(report.report_type) === "OFICIAL" ? "OFICIAL" : "INSTANTANEO",
+    status: String(report.status),
+    category: String(report.incident_category),
+    zone: String(report.neighborhood ?? "Cartagena"),
+    time: timeStr,
+    author: "Usuario",
+    authorRank: "Ciudadano",
+    children: Number(report.duplicate_group_count ?? 0),
+    source: { status: "PENDIENTE", label: "sin fuente aceptada", media: "pendiente" },
+    votes: {
+      yes: Number(report.community_yes_count ?? 0),
+      no: Number(report.community_no_count ?? 0),
+      unknown: Number(report.community_unknown_count ?? 0),
+    },
+    lat: Number(report.lat),
+    lng: Number(report.lng),
+    apiBacked: true,
+    isWomensModeRelevant: Boolean(report.is_womens_mode_relevant),
+  };
+}
+
+function mapApiBusiness(business: Record<string, unknown>): BusinessItem {
+  return {
+    id: String(business.id),
+    name: String(business.name),
+    category: String(business.category),
+    status: String(business.status),
+    label: String(business.sponsor_label ?? "Sin campana"),
+    zone: String(business.address_text ?? "Cartagena"),
+    score: Number(business.reputation_score ?? 0),
+    lat: Number(business.lat),
+    lng: Number(business.lng),
+    apiBacked: true,
+  };
+}
+
+function hostFromUrl(url: string) {
+  try {
+    return new URL(url).host;
+  } catch {
+    return "fuente externa";
+  }
+}
 
 export default function Dashboard() {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<UserPublic | null>(null);
-  const [reports, setReports] = useState<ReportItem[]>(demoReports);
-  const [businesses, setBusinesses] = useState<BusinessItem[]>(demoBusinesses);
+  const [reports, setReports] = useState<ReportItem[]>(() => generateDemoReports("Cartagena"));
+  const [businesses, setBusinesses] = useState<BusinessItem[]>(() => generateDemoBusinesses("Cartagena"));
   const [userVotes, setUserVotes] = useState<Record<string, "SI" | "NO" | "NO_SE">>({});
   const [voteHistory, setVoteHistory] = useState<Record<string, number>>({});
   const [activeTab, setActiveTab] = useState<"map" | "business" | "admin">("map");
   const [activeRole, setActiveRole] = useState<"CITIZEN" | "BUSINESS" | "ADMIN">("CITIZEN");
-  const [authMode, setAuthMode] = useState<"login" | "register" | null>(null);
+  const [authMode, setAuthMode] = useState<"login" | "register" | "verify_email" | null>(null);
+  const [verificationEmail, setVerificationEmail] = useState<string>("");
   const [sourceReportId, setSourceReportId] = useState<string | null>(null);
   const [showReportForm, setShowReportForm] = useState(false);
   const [showBusinessForm, setShowBusinessForm] = useState(false);
@@ -208,6 +917,66 @@ export default function Dashboard() {
   const [routeToCoords, setRouteToCoords] = useState<[number, number] | null>(null);
   const [fromSuggestions, setFromSuggestions] = useState<GeocodeSuggestion[]>([]);
   const [toSuggestions, setToSuggestions] = useState<GeocodeSuggestion[]>([]);
+  const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [currentCity, setCurrentCity] = useState("Cartagena");
+  const [reportZone, setReportZone] = useState("");
+  const [reportSuggestions, setReportSuggestions] = useState<GeocodeSuggestion[]>([]);
+  const [selectedReportCoords, setSelectedReportCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function handleZoneChange(val: string) {
+    setReportZone(val);
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+
+    if (val.trim().length < 3) {
+      setReportSuggestions([]);
+      return;
+    }
+
+    searchTimeoutRef.current = setTimeout(async () => {
+      try {
+        const suggestions = await geocodeNominatim(val, currentCity);
+        setReportSuggestions(suggestions);
+      } catch {
+        setReportSuggestions([]);
+      }
+    }, 400);
+  }
+
+  function handleSelectSuggestion(suggestion: GeocodeSuggestion) {
+    const shortName = suggestion.display_name.split(",")[0];
+    setReportZone(shortName);
+    setSelectedReportCoords({
+      lat: Number(suggestion.lat),
+      lng: Number(suggestion.lon),
+    });
+    setReportSuggestions([]);
+  }
+
+  function handleCheckAlerts() {
+    if (!userCoords) {
+      setToast("Activa tu ubicación para detectar alertas cercanas.");
+      return;
+    }
+    const userPoint = turf.point([userCoords.lng, userCoords.lat]);
+    let count = 0;
+    reports.forEach((report) => {
+      const reportPoint = turf.point([report.lng, report.lat]);
+      const distance = turf.distance(userPoint, reportPoint, { units: "kilometers" });
+      if (distance <= 1.0) { // 1 km radius
+        count++;
+      }
+    });
+
+    if (count === 0) {
+      setToast("No hay alertas nuevas cerca de tu ubicación actual (1 km).");
+    } else if (count === 1) {
+      setToast("Tienes 1 alerta nueva cerca de tu ubicación actual (1 km).");
+    } else {
+      setToast(`Tienes ${count} alertas nuevas cerca de tu ubicación (1 km).`);
+    }
+  }
+
   const [toast, setToastRaw] = useState("Listo para registrar usuarios y crear datos reales en SQLite.");
   const [toastKey, setToastKey] = useState(0);
   const [darkMode, setDarkMode] = useState(false);
@@ -218,7 +987,8 @@ export default function Dashboard() {
     "Farmacia Manga paso a APROBADO",
   ]);
 
-  // Auto-dismiss toast after 5 s
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   const setToast = useCallback((msg: string) => {
     setToastRaw(msg);
     setToastKey((k) => k + 1);
@@ -226,9 +996,12 @@ export default function Dashboard() {
     toastTimerRef.current = setTimeout(() => setToastRaw(""), 5000);
   }, []);
 
-  // Apply dark mode class to <html>
   useEffect(() => {
-    document.documentElement.classList.toggle("dark", darkMode);
+    if (darkMode) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
   }, [darkMode]);
 
   const filteredReports = useMemo(() => {
@@ -253,6 +1026,7 @@ export default function Dashboard() {
         verified: user.reports_verified_count,
         unverified: user.reports_unverified_count,
         rejected: user.reports_rejected_count,
+        votes: user.votes_cast_count ?? 0,
       }
     : {
         alias: "Invitado",
@@ -262,6 +1036,7 @@ export default function Dashboard() {
         verified: 0,
         unverified: 0,
         rejected: 0,
+        votes: 0,
       };
   const isAdmin = user?.user_type === "ADMIN";
 
@@ -277,23 +1052,94 @@ export default function Dashboard() {
     return body as T;
   }
 
-  async function loadReports() {
+  async function loadReports(cityKey: string = currentCity) {
     try {
-      const apiReports = await api<Array<Record<string, unknown>>>("/api/v1/reports?city=Cartagena&limit=100");
+      const apiReports = await api<Array<Record<string, unknown>>>(`/api/v1/reports?city=${encodeURIComponent(cityKey)}&limit=100`);
       const mapped = apiReports.map(mapApiReport);
-      setReports((current) => mergeById(demoReports, mapped, current.filter((item) => item.apiBacked)));
+      setReports((current) => mergeById(generateDemoReports(cityKey), mapped, current.filter((item) => item.apiBacked)));
     } catch {
       setToast("API no disponible para reportes; sigo con datos demo.");
     }
   }
 
-  async function loadBusinesses() {
+  async function loadBusinesses(cityKey: string = currentCity) {
     try {
       const apiBusinesses = await api<Array<Record<string, unknown>>>("/api/v1/businesses");
       const mapped = apiBusinesses.map(mapApiBusiness);
-      setBusinesses((current) => mergeById(demoBusinesses, mapped, current.filter((item) => item.apiBacked)));
+      const config = CITIES_CONFIG[cityKey] || CITIES_CONFIG["Cartagena"];
+      const filteredMapped = mapped.filter(b => {
+        const [[west, south], [east, north]] = config.bounds;
+        return b.lng >= west && b.lng <= east && b.lat >= south && b.lat <= north;
+      });
+      setBusinesses((current) => mergeById(generateDemoBusinesses(cityKey), filteredMapped, current.filter((item) => item.apiBacked)));
     } catch {
       setToast("API no disponible para empresas; sigo con datos demo.");
+    }
+  }
+
+  function handleUserLocated(coords: { longitude: number; latitude: number }) {
+    setUserCoords({ lat: coords.latitude, lng: coords.longitude });
+
+    // Buscar si las coordenadas corresponden a alguna de las ciudades configuradas
+    const matchedCityKey = Object.keys(CITIES_CONFIG).find((cityKey) => {
+      const config = CITIES_CONFIG[cityKey];
+      const [[west, south], [east, north]] = config.bounds;
+      return coords.longitude >= west && coords.longitude <= east && coords.latitude >= south && coords.latitude <= north;
+    });
+
+    if (matchedCityKey) {
+      if (matchedCityKey !== currentCity) {
+        void handleCityChange(matchedCityKey);
+        setToast(`Ubicación detectada: Cambiando a la vista de ${matchedCityKey}.`);
+      }
+    } else {
+      // Intentar geocodificar reversa mediante Nominatim para detectar si es otra ciudad principal
+      fetch(`https://nominatim.openstreetmap.org/reverse?lat=${coords.latitude}&lon=${coords.longitude}&format=json&accept-language=es`)
+        .then((res) => res.json())
+        .then((data) => {
+          const city = data.address?.city || data.address?.town || data.address?.village;
+          if (city) {
+            const matched = Object.keys(CITIES_CONFIG).find(
+              c => c.toLowerCase() === city.toLowerCase() || city.toLowerCase().includes(c.toLowerCase())
+            );
+            if (matched && matched !== currentCity) {
+              void handleCityChange(matched);
+              setToast(`Ciudad detectada: Cambiando a ${matched}.`);
+            }
+          }
+        })
+        .catch(() => {
+          /* ignore */
+        });
+    }
+  }
+
+  async function handleCityChange(newCity: string) {
+    setCurrentCity(newCity);
+    const newDemoReports = generateDemoReports(newCity);
+    const newDemoBusinesses = generateDemoBusinesses(newCity);
+    setReports(newDemoReports);
+    setBusinesses(newDemoBusinesses);
+
+    try {
+      const apiReports = await api<Array<Record<string, unknown>>>(`/api/v1/reports?city=${encodeURIComponent(newCity)}&limit=100`);
+      const mapped = apiReports.map(mapApiReport);
+      setReports((current) => mergeById(newDemoReports, mapped, current.filter((item) => item.apiBacked)));
+    } catch {
+      // ignore
+    }
+
+    try {
+      const apiBusinesses = await api<Array<Record<string, unknown>>>("/api/v1/businesses");
+      const mapped = apiBusinesses.map(mapApiBusiness);
+      const config = CITIES_CONFIG[newCity] || CITIES_CONFIG["Cartagena"];
+      const filteredMapped = mapped.filter(b => {
+        const [[west, south], [east, north]] = config.bounds;
+        return b.lng >= west && b.lng <= east && b.lat >= south && b.lat <= north;
+      });
+      setBusinesses((current) => mergeById(newDemoBusinesses, filteredMapped, current.filter((item) => item.apiBacked)));
+    } catch {
+      // ignore
     }
   }
 
@@ -307,13 +1153,49 @@ export default function Dashboard() {
       user_type: activeRole,
     };
     try {
+      if (authMode === "login") {
+        const response = await api<{ access_token: string; user: UserPublic }>(
+          `/api/v1/auth/login`,
+          {
+            method: "POST",
+            body: JSON.stringify({ email: payload.email, password: payload.password }),
+          },
+        );
+        setToken(response.access_token);
+        setUser(response.user);
+        localStorage.setItem("rs_token", response.access_token);
+        localStorage.setItem("rs_user", JSON.stringify(response.user));
+        setAuthMode(null);
+        setToast(`Sesión iniciada: ${response.user.alias}`);
+      } else {
+        const response = await api<{ status: string; email: string }>(
+          `/api/v1/auth/register`,
+          {
+            method: "POST",
+            body: JSON.stringify(payload),
+          },
+        );
+        if (response.status === "verification_required") {
+          setVerificationEmail(response.email);
+          setAuthMode("verify_email");
+          setToast("Se ha enviado un código de verificación a tu correo.");
+        }
+      }
+    } catch (error) {
+      setToast(error instanceof Error ? error.message : "No se pudo autenticar.");
+    }
+  }
+
+  async function handleVerify(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const code = String(form.get("code") ?? "");
+    try {
       const response = await api<{ access_token: string; user: UserPublic }>(
-        `/api/v1/auth/${authMode === "login" ? "login" : "register"}`,
+        `/api/v1/auth/verify`,
         {
           method: "POST",
-          body: JSON.stringify(
-            authMode === "login" ? { email: payload.email, password: payload.password } : payload,
-          ),
+          body: JSON.stringify({ email: verificationEmail, code }),
         },
       );
       setToken(response.access_token);
@@ -321,11 +1203,27 @@ export default function Dashboard() {
       localStorage.setItem("rs_token", response.access_token);
       localStorage.setItem("rs_user", JSON.stringify(response.user));
       setAuthMode(null);
-      setToast(`${authMode === "login" ? "Sesion iniciada" : "Registro creado"}: ${response.user.alias}`);
+      setToast(`Cuenta verificada y sesión iniciada: ${response.user.alias}`);
     } catch (error) {
-      setToast(error instanceof Error ? error.message : "No se pudo autenticar.");
+      setToast(error instanceof Error ? error.message : "Código inválido o expirado.");
     }
   }
+
+  async function handleResendCode() {
+    try {
+      await api<{ status: string; email: string }>(
+        `/api/v1/auth/resend-code`,
+        {
+          method: "POST",
+          body: JSON.stringify({ email: verificationEmail }),
+        },
+      );
+      setToast("Nuevo código de verificación enviado.");
+    } catch (error) {
+      setToast(error instanceof Error ? error.message : "No se pudo reenviar el código.");
+    }
+  }
+
 
   function handleLogout() {
     setToken(null);
@@ -344,18 +1242,55 @@ export default function Dashboard() {
       setToast("Primero crea una cuenta o inicia sesion para reportar.");
       return;
     }
+
     const form = new FormData(event.currentTarget);
+    const zoneName = reportZone.trim();
+    if (!zoneName) {
+      setToast("Por favor, ingresa una zona o barrio.");
+      return;
+    }
+
+    let lat = selectedReportCoords?.lat;
+    let lng = selectedReportCoords?.lng;
+
+    // Si el usuario no seleccionó de la lista, intentar geocodificar el texto libre
+    if (!lat || !lng) {
+      try {
+        const suggestions = await geocodeNominatim(zoneName, currentCity);
+        if (suggestions && suggestions.length > 0) {
+          lat = Number(suggestions[0].lat);
+          lng = Number(suggestions[0].lon);
+        } else {
+          setToast("No se pudo encontrar la ubicación de esa zona. Por favor, selecciona un barrio de la lista de sugerencias.");
+          return;
+        }
+      } catch (err) {
+        setToast("Error al geocodificar la zona. Por favor, selecciona una sugerencia.");
+        return;
+      }
+    }
+
+    // Validar límites de la ciudad piloto activa (para evitar registrar fuera de la zona piloto o en el agua)
+    const config = CITIES_CONFIG[currentCity] || CITIES_CONFIG["Cartagena"];
+    const [[west, south], [east, north]] = config.bounds;
+
+    if (lat < south || lat > north || lng < west || lng > east) {
+      setToast(`La ubicación seleccionada está fuera de la zona piloto de ${currentCity} o en el agua. Por favor, elige un barrio válido.`);
+      return;
+    }
+
     const payload = {
       title: String(form.get("title") ?? ""),
       description: String(form.get("description") ?? ""),
       incident_category: String(form.get("category") ?? "Hurto"),
       occurred_at: new Date().toISOString(),
-      lat: Number(form.get("lat") || 10.4236),
-      lng: Number(form.get("lng") || -75.5478),
-      city: "Cartagena",
-      neighborhood: String(form.get("zone") ?? "Centro"),
+      lat,
+      lng,
+      city: currentCity,
+      neighborhood: zoneName,
       is_womens_mode_relevant: form.get("is_womens_mode_relevant") === "on",
     };
+
     try {
       const report = await api<Record<string, unknown>>("/api/v1/reports", {
         method: "POST",
@@ -363,6 +1298,9 @@ export default function Dashboard() {
       });
       setReports((current) => [mapApiReport(report), ...current]);
       event.currentTarget.reset();
+      setReportZone("");
+      setSelectedReportCoords(null);
+      setReportSuggestions([]);
       setShowReportForm(false);
       setToast("Reporte creado y guardado en SQLite.");
     } catch (error) {
@@ -592,21 +1530,16 @@ export default function Dashboard() {
 
   function toggleWomensMode() {
     if (showWomensMode) {
-      // Desactivar directamente
       setShowWomensMode(false);
       setCategoryFilter("todas");
       setToast("Modo estandar: Manteniendo ruta pero con todos los incidentes.");
       return;
     }
-    
-    // Al activar, pedir confirmacion de identidad
     setShowWomensModeConfirm(true);
   }
 
   async function confirmWomensMode() {
     setShowWomensModeConfirm(false);
-    
-    // Usar /me en lugar de /{id} — el endpoint correcto en el backend
     if (token && user) {
       try {
         const updatedUser = await api<UserPublic>(`/api/v1/users/me`, {
@@ -616,7 +1549,7 @@ export default function Dashboard() {
         setUser(updatedUser);
         localStorage.setItem("rs_user", JSON.stringify(updatedUser));
       } catch {
-        // No bloquear el flujo si falla el patch de perfil
+        /* ignore */
       }
     }
 
@@ -670,13 +1603,11 @@ export default function Dashboard() {
 
   useEffect(() => {
     const storedToken = localStorage.getItem("rs_token");
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (storedToken) setToken(storedToken);
 
     const storedUser = localStorage.getItem("rs_user");
     if (storedUser) {
       try {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setUser(JSON.parse(storedUser));
       } catch {
         /* ignore */
@@ -686,7 +1617,6 @@ export default function Dashboard() {
     const storedVotes = localStorage.getItem("rs_user_votes");
     if (storedVotes) {
       try {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setUserVotes(JSON.parse(storedVotes));
       } catch {
         /* ignore */
@@ -696,7 +1626,6 @@ export default function Dashboard() {
     const storedHistory = localStorage.getItem("rs_vote_history");
     if (storedHistory) {
       try {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setVoteHistory(JSON.parse(storedHistory));
       } catch {
         /* ignore */
@@ -705,641 +1634,653 @@ export default function Dashboard() {
 
     void loadReports();
     void loadBusinesses();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+    // Auto-locate user on startup
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition((position) => {
+        const { longitude, latitude } = position.coords;
+        setUserCoords({ lat: latitude, lng: longitude });
+
+        fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&accept-language=es`)
+          .then((res) => res.json())
+          .then((data) => {
+            const city = data.address?.city || data.address?.town || data.address?.village || "Cartagena";
+            const matchedCity = Object.keys(CITIES_CONFIG).find(
+              c => c.toLowerCase() === city.toLowerCase() || city.toLowerCase().includes(c.toLowerCase())
+            );
+            if (matchedCity) {
+              handleCityChange(matchedCity);
+              setToast(`Ubicación detectada: Cambiando a ${matchedCity}.`);
+            } else {
+              setCurrentCity(city);
+              if (longitude >= -75.7 && longitude <= -75.3 && latitude >= 10.2 && latitude <= 10.6) {
+                setToast("Ubicación detectada: Centrando mapa en tu zona.");
+              }
+            }
+          })
+          .catch(() => {
+            /* ignore fallback to Cartagena */
+          });
+      }, () => {
+        console.log("Geolocation permission denied or error.");
+      });
+    }
   }, []);
 
   return (
-    <main className="appShell">
-      <header className="topbar">
-        <div className="brand" aria-label="RutaSegura">
-          <BrandLogo size={38} />
-          <div className="brandText">
-            <strong>RutaSegura</strong>
-            <span>Cartagena · MapLibre · SQLite</span>
+    <div className="flex h-screen bg-background text-on-background font-body overflow-hidden">
+      {/* Sidebar Overlay (Mobile) */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-on-background/40 backdrop-blur-sm z-20 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside className={`fixed inset-y-0 left-0 w-64 bg-primary text-on-primary flex flex-col z-30 transition-transform duration-300 transform ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} md:translate-x-0`}>
+        <div className="h-16 flex items-center justify-between px-6 border-b border-on-primary/10">
+          <div className="flex items-center">
+            <BrandLogo size={42} />
+            <span className="ml-3 font-headline font-bold text-xl tracking-tight">RutaSegura</span>
+          </div>
+          <button className="md:hidden text-on-primary/60 hover:text-on-primary" onClick={() => setSidebarOpen(false)}>
+            <X size={20} />
+          </button>
+        </div>
+        
+        <nav className="flex-1 py-6 px-4 space-y-2">
+          <SidebarNavItem 
+            icon={<MapPin size={20} />} 
+            label="Mapa en Vivo" 
+            active={activeTab === "map"} 
+            onClick={() => { setActiveTab("map"); setSidebarOpen(false); }}
+            badge={filteredReports.length > 0 ? filteredReports.length : undefined}
+          />
+          <SidebarNavItem 
+            icon={<Store size={20} />} 
+            label="Puntos Seguros" 
+            active={activeTab === "business"} 
+            onClick={() => { setActiveTab("business"); setSidebarOpen(false); }} 
+          />
+          {isAdmin && (
+            <SidebarNavItem 
+              icon={<ShieldCheck size={20} />} 
+              label="Administración" 
+              active={activeTab === "admin"} 
+              onClick={() => { setActiveTab("admin"); setSidebarOpen(false); }} 
+            />
+          )}
+          
+          <div className="pt-8 pb-2 px-3 text-xs font-bold text-on-primary/40 uppercase tracking-widest">Herramientas</div>
+          <SidebarNavItem 
+            icon={<Navigation size={20} />} 
+            label="Trazar Ruta" 
+            onClick={toggleRoute}
+            active={showRoute}
+          />
+          <SidebarNavItem 
+            icon={<Heart size={20} />} 
+            label="Modo Mujeres" 
+            onClick={toggleWomensMode}
+            active={showWomensMode}
+            highlight={showWomensMode}
+          />
+          <SidebarNavItem 
+            icon={<Layers size={20} />} 
+            label="Capas de Mapa" 
+            onClick={() => setToast("Capas: incidentes, puntos seguros e historico.")}
+          />
+        </nav>
+
+        <div className="p-4 border-t border-on-primary/10">
+          <div className="bg-primary/20 rounded-xl p-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-on-primary">
+              <User size={20} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold truncate">{profile.alias}</p>
+              <p className="text-xs text-on-primary/60 truncate">{profile.rank}</p>
+            </div>
+            <button onClick={() => setShowAccountModal(true)} className="text-on-primary/40 hover:text-on-primary transition-colors">
+              <MoreVertical size={18} />
+            </button>
           </div>
         </div>
+      </aside>
 
-        <nav className="topbarActions" aria-label="Navegacion principal">
-          <button className={`navButton ${activeTab === "map" ? "active" : ""}`} type="button" onClick={() => setActiveTab("map")}>
-            <MapPin size={17} />
-            Mapa
-            {filteredReports.length > 0 && <span className="navBadge">{filteredReports.length}</span>}
-          </button>
-          <button className={`navButton ${activeTab === "business" ? "active" : ""}`} type="button" onClick={() => setActiveTab("business")}>
-            <Store size={17} />
-            Empresas
-          </button>
-          <button
-            className={`navButton ${activeTab === "admin" ? "active" : ""}`}
-            type="button"
-            onClick={() => {
-              if (!isAdmin) {
-                setToast("El panel admin solo esta disponible para usuarios admin.");
-                return;
-              }
-              setActiveTab("admin");
-            }}
-          >
-            <ShieldCheck size={17} />
-            Admin
-          </button>
-          <button className="iconButton" title="Notificaciones" aria-label="Notificaciones" onClick={() => setToast("Tienes 3 pendientes de validacion.")}>
-            <Bell size={18} />
-          </button>
-          <button className="iconButton" title="Mi Cuenta" aria-label="Mi Cuenta" onClick={() => setShowAccountModal(true)}>
-            <User size={18} />
-          </button>
-          <button
-            className="darkToggleBtn"
-            title={darkMode ? "Modo claro" : "Modo oscuro"}
-            aria-label={darkMode ? "Activar modo claro" : "Activar modo oscuro"}
-            onClick={() => setDarkMode((d) => !d)}
-          >
-            {darkMode ? "☀️" : "🌙"}
-          </button>
-          <button className="primaryButton" type="button" onClick={() => setShowReportForm(true)}>
-            <Plus size={18} />
-            Reportar
-          </button>
-        </nav>
-      </header>
-
-      {toast && <div key={toastKey} className={`toastBar ${showWomensMode ? "womensMode" : ""}`} role="status">{toast}</div>}
-
-      <section className="mainGrid">
-        <aside className="sidebar" aria-label="Cuenta, filtros y notificaciones">
-          <section className="panelBlock">
-            <h2 className="sectionTitle"><Filter size={15} /> Filtros</h2>
-            <div className="fieldStack compact">
-              <div className="field">
-                <label htmlFor="categoryFilter">Categoria</label>
-                <select id="categoryFilter" value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}>
-                  <option value="todas">Todas</option>
-                  <option value="hurto">Hurto</option>
-                  <option value="acoso">Acoso</option>
-                  <option value="iluminacion">Iluminacion</option>
-                </select>
-              </div>
-              <div className="field">
-                <label htmlFor="dateRange">Fecha</label>
-                <select id="dateRange" value={dateFilter} onChange={(event) => { setDateFilter(event.target.value); setToast(`Filtro de fecha: ${event.target.value}`); }}>
-                  <option value="24h">Ultimas 24 h</option>
-                  <option value="7d">7 dias</option>
-                  <option value="30d">30 dias</option>
-                </select>
-              </div>
-              <div className="field">
-                <label htmlFor="verification">Verificacion</label>
-                <select id="verification" value={verificationFilter} onChange={(event) => setVerificationFilter(event.target.value)}>
-                  <option value="todos">Todos</option>
-                  <option value="verificado">Oficial</option>
-                  <option value="comunidad">Comunidad</option>
-                  <option value="no-verificado">No verificado</option>
-                </select>
-              </div>
-            </div>
-          </section>
-
-          <section className="panelBlock">
-            <h2 className="sectionTitle"><Navigation size={15} /> Mi ruta</h2>
-            <div className="fieldStack compact">
-              <div className="field">
-                <label htmlFor="from">Origen</label>
-                <div className="geocodeFieldWrap">
-                  <input
-                    id="from"
-                    value={routeFrom}
-                    placeholder="Casa, colegio, trabajo..."
-                    autoComplete="off"
-                    onChange={async (e) => {
-                      setRouteFrom(e.target.value);
-                      setFromSuggestions(await geocodeNominatim(e.target.value));
-                    }}
-                  />
-                  {fromSuggestions.length > 0 && (
-                    <div className="geocodeSuggestions">
-                      {fromSuggestions.map((s) => (
-                        <button
-                          key={s.lat + s.lon}
-                          className="geocodeSuggestion"
-                          type="button"
-                          onClick={() => {
-                            setRouteFrom(s.display_name);
-                            setRouteFromCoords([parseFloat(s.lon), parseFloat(s.lat)]);
-                            setFromSuggestions([]);
-                          }}
-                        >
-                          {s.display_name}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className="field">
-                <label htmlFor="to">Destino</label>
-                <div className="geocodeFieldWrap">
-                  <input
-                    id="to"
-                    value={routeTo}
-                    placeholder="Destino frecuente..."
-                    autoComplete="off"
-                    onChange={async (e) => {
-                      setRouteTo(e.target.value);
-                      setToSuggestions(await geocodeNominatim(e.target.value));
-                    }}
-                  />
-                  {toSuggestions.length > 0 && (
-                    <div className="geocodeSuggestions">
-                      {toSuggestions.map((s) => (
-                        <button
-                          key={s.lat + s.lon}
-                          className="geocodeSuggestion"
-                          type="button"
-                          onClick={() => {
-                            setRouteTo(s.display_name);
-                            setRouteToCoords([parseFloat(s.lon), parseFloat(s.lat)]);
-                            setToSuggestions([]);
-                          }}
-                        >
-                          {s.display_name}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className="toggleRow">
-                <button className={`toggleButton ${showRoute ? "active" : ""}`} type="button" onClick={toggleRoute}>
-                  <Navigation size={16} /> Trazar Ruta
-                </button>
-                <button
-                  className={`toggleButton ${showWomensMode ? "active" : ""}`}
-                  type="button"
-                  data-mode="womens"
-                  onClick={toggleWomensMode}
-                >
-                  <Heart size={16} /> Modo mujeres
-                </button>
-              </div>
-              <div className="toggleRow">
-                <button className="toggleButton" type="button" onClick={() => setToast("Capas: incidentes, puntos seguros e historico.")}>
-                  <Layers size={16} /> Capas
-                </button>
-              </div>
-            </div>
-          </section>
-
-
-        </aside>
-
-        <section className="mapArea" aria-label="Mapa de reportes y puntos seguros">
-          <div className="mapToolbar">
-            <button className={`chip ${showReports ? "active" : ""}`} type="button" onClick={() => setShowReports((value) => !value)}>
-              <SlidersHorizontal size={15} /> Incidentes
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col md:ml-64 overflow-hidden">
+        {/* Top Header */}
+        <header className="h-16 bg-surface border-b border-outline-variant flex items-center justify-between px-4 sm:px-6 z-20 shrink-0">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <button className="md:hidden text-on-surface p-1" onClick={() => setSidebarOpen(true)}>
+              <Menu size={22} />
             </button>
-            <button className={`chip ${showBusinesses ? "active" : ""}`} type="button" onClick={() => setShowBusinesses((value) => !value)}>
-              <Building2 size={15} /> Puntos seguros
-            </button>
-            <button className={`chip ${showRoute ? "active" : ""}`} type="button" onClick={() => setShowRoute((value) => !value)}>
-              <Clock3 size={15} /> Ruta
-            </button>
-          </div>
-          <MapShell
-            reports={filteredReports}
-            businesses={businesses}
-            showReports={showReports}
-            showBusinesses={showBusinesses}
-            showRoute={showRoute}
-            routeCoordinates={routeCoordinates}
-            onSelectReport={(id) => setToast(reports.find((report) => report.id === id)?.title ?? "Reporte seleccionado")}
-          />
-        </section>
-
-        <aside className="detailPane" aria-label="Reportes, empresas y administracion">
-          {(activeTab === "map" || activeTab === "admin") && (
-            <section className="panelBlock">
-              <h2 className="sectionTitle"><Newspaper size={15} /> Reportes</h2>
-              <div className="reportList">
-                {filteredReports.map((report) => (
-                  <article className="reportItem" key={report.id}>
-                    <div className="reportHeader">
-                      <div>
-                        <div className="tagRow">
-                          <span className={`typeTag ${report.type === "OFICIAL" ? "official" : ""}`}>{report.type === "OFICIAL" ? "Oficial" : "Instantaneo"}</span>
-                          <span className={statusClass(report.status)}>{statusLabel(report.status)}</span>
-                        </div>
-                        <h3>{report.title}</h3>
-                        <div className="reportMeta">{report.category} / {report.zone} / {report.time}</div>
-                      </div>
-                    </div>
-                    <p className="itemDescription">{report.description}</p>
-                    <div className="authorRow">
-                      <span>{report.author}</span>
-                      <span className={rankClass(report.authorRank)}>{report.authorRank}</span>
-                      {report.children > 0 ? <span className="subtle">+{report.children} duplicados</span> : null}
-                    </div>
-                    <div className="sourceRow">
-                      <Link size={15} />
-                      <span className={sourceClass(report.source.status)}>{report.source.label}</span>
-                    </div>
-                    <div className="voteRow" aria-label="Resumen de votos">
-                      {token ? (
-                        <>
-                          <button className={`voteButton yes ${userVotes[report.id] === "SI" ? "active" : ""}`} type="button" title="Votos si" onClick={() => voteReport(report.id, "SI")}><Check size={16} /></button>
-                          <span className="reportMeta">{report.votes.yes}</span>
-                          <button className={`voteButton no ${userVotes[report.id] === "NO" ? "active" : ""}`} type="button" title="Votos no" onClick={() => voteReport(report.id, "NO")}><X size={16} /></button>
-                          <span className="reportMeta">{report.votes.no}</span>
-                          <button className={`voteButton unknown ${userVotes[report.id] === "NO_SE" ? "active" : ""}`} type="button" title="No se" onClick={() => voteReport(report.id, "NO_SE")}><HelpCircle size={16} /></button>
-                          <span className="reportMeta">{report.votes.unknown}</span>
-                        </>
-                      ) : (
-                        <div className="guestVoteNote">Inicia sesion para votar</div>
-                      )}
-                      {isAdmin ? (
-                        <button className="linkButton" type="button" onClick={() => setSourceReportId(report.id)}>
-                          <Newspaper size={16} /> Gestionar noticia
-                        </button>
-                      ) : (
-                        <span className="adminOnlyNote">
-                          <ShieldCheck size={15} /> Solo admin
-                        </span>
-                      )}
-                    </div>
-                  </article>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {(activeTab === "business" || activeTab === "admin") && (
-            <section className="panelBlock">
-              <h2 className="sectionTitle"><Store size={15} /> Empresas</h2>
-              <button className="primaryButton fullButton" type="button" onClick={() => setShowBusinessForm(true)}>
-                <Plus size={16} /> Registrar empresa
-              </button>
-              <div className="businessList withTopGap">
-                {businesses.map((business) => (
-                  <article className="businessItem" key={business.id}>
-                    <div>
-                      <h3>{business.name}</h3>
-                      <div className="reportMeta">{business.category} / {business.zone} / score {business.score}</div>
-                    </div>
-                    <span className={business.status === "APROBADO" ? "status trusted" : "status pending"}>{business.status === "APROBADO" ? "Seguro" : "Pendiente"}</span>
-                    <div className="sourceRow"><CreditCard size={15} /><span>{business.label}</span></div>
-                    <div className="voteRow">
-                      {token ? (
-                        <>
-                          <button className={`voteButton yes ${userVotes[business.id] === "SI" ? "active" : ""}`} type="button" title="Es seguro" onClick={() => voteBusiness(business.id, "SI")}><Check size={16} /></button>
-                          <button className={`voteButton no ${userVotes[business.id] === "NO" ? "active" : ""}`} type="button" title="No es seguro" onClick={() => voteBusiness(business.id, "NO")}><X size={16} /></button>
-                          <button className={`voteButton unknown ${userVotes[business.id] === "NO_SE" ? "active" : ""}`} type="button" title="No se" onClick={() => voteBusiness(business.id, "NO_SE")}><HelpCircle size={16} /></button>
-                        </>
-                      ) : (
-                        <div className="guestVoteNote">Inicia sesion para votar</div>
-                      )}
-                      <button className="linkButton" type="button" onClick={() => startCampaign(business.id)}>
-                        <CreditCard size={16} /> Contratar campana
-                      </button>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {activeTab === "admin" && (
-            <section className="panelBlock adminBlock">
-              <h2 className="sectionTitle"><ShieldCheck size={15} /> Admin</h2>
-              <div className="adminGrid">
-                <button className="adminAction" type="button" onClick={() => adminAction("merge")}><GitMerge size={16} /> Fusionar duplicados</button>
-                <button className="adminAction" type="button" onClick={() => adminAction("hide")}><EyeOff size={16} /> Ocultar reporte</button>
-                <button className="adminAction" type="button" onClick={() => adminAction("approve")}><BadgeCheck size={16} /> Aprobar empresa</button>
-                <button className="adminAction" type="button" onClick={() => adminAction("fake")}><Flag size={16} /> Descartar bulo</button>
-              </div>
-              <div className="auditList withTopGap">
-                {auditLog.map((item) => (
-                  <div className="auditItem" key={item}><Users size={14} />{item}</div>
-                ))}
-              </div>
-            </section>
-          )}
-        </aside>
-      </section>
-
-      {authMode ? (
-        <Modal title={authMode === "login" ? "Login" : "Registro"} onClose={() => setAuthMode(null)}>
-          <form className="fieldStack" onSubmit={handleAuth}>
-            <div className="field"><label htmlFor="authEmail">Email</label><input id="authEmail" name="email" inputMode="email" required /></div>
-            {authMode === "register" ? <div className="field"><label htmlFor="authAlias">Alias publico</label><input id="authAlias" name="alias" required minLength={3} /></div> : null}
-            <div className="field"><label htmlFor="authPassword">Password</label><input id="authPassword" name="password" type="password" required minLength={8} /></div>
-            <button className="primaryButton fullButton" type="submit">{authMode === "login" ? "Entrar" : `Crear ${roleLabel(activeRole).toLowerCase()}`}</button>
-          </form>
-        </Modal>
-      ) : null}
-
-      {sourceReportId ? (
-        <Modal title="Aportar noticia" onClose={() => setSourceReportId(null)}>
-          <form className="fieldStack" onSubmit={submitSource}>
-            <div className="field"><label htmlFor="sourceUrl">URL del medio</label><input id="sourceUrl" name="url" inputMode="url" placeholder="https://medio.com/noticia" required /></div>
-            <button className="primaryButton fullButton" type="submit">Enviar a revision</button>
-          </form>
-        </Modal>
-      ) : null}
-
-      {showVoteForm ? (
-        <VoteForm data={showVoteForm} onSubmit={submitVoteRequest} onClose={() => setShowVoteForm(null)} />
-      ) : null}
-
-      {showBusinessForm ? (
-        <Modal title="Registrar empresa" onClose={() => setShowBusinessForm(false)}>
-          <form className="fieldStack" onSubmit={createBusiness}>
-            <div className="field"><label htmlFor="businessName">Nombre</label><input id="businessName" name="name" required minLength={3} /></div>
-            <div className="field"><label htmlFor="businessCategory">Categoria</label><input id="businessCategory" name="category" defaultValue="Comercio" required /></div>
-            <div className="field"><label htmlFor="businessDescription">Descripcion</label><textarea id="businessDescription" name="description" /></div>
-            <div className="field"><label htmlFor="businessZone">Zona</label><input id="businessZone" name="zone" defaultValue="Centro" /></div>
-            <div className="coordinateGrid">
-              <input name="lat" aria-label="Latitud empresa" defaultValue="10.4252" />
-              <input name="lng" aria-label="Longitud empresa" defaultValue="-75.5487" />
+            <div className="relative group hidden sm:block">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-outline w-4 h-4" />
+              <input 
+                type="text" 
+                placeholder="Buscar incidentes o zonas..." 
+                className="pl-10 pr-4 py-2 bg-surface-container-low border-none rounded-full text-sm w-64 focus:ring-2 focus:ring-primary/20 transition-all outline-none"
+              />
             </div>
-            <button className="primaryButton fullButton" type="submit">Guardar empresa</button>
-          </form>
-        </Modal>
-      ) : null}
 
-      {showAccountModal ? (
-        <Modal title="Mi Cuenta" onClose={() => setShowAccountModal(false)}>
-          <section className="profilePanel" style={{ borderBottom: "none" }} aria-label="Perfil publico">
-            <div className="avatar" aria-hidden="true">
-              <User size={22} />
-            </div>
-            <div className="profileText">
-              <strong>{profile.alias}</strong>
-              <span>{profile.role}</span>
-            </div>
-            <span className={rankClass(profile.rank)}>{profile.rank}</span>
-            {token ? (
-              <div className="profileStats">
-                <div><strong>{profile.reputation}</strong><span>reputacion</span></div>
-                <div><strong>{profile.verified}</strong><span>verificados</span></div>
-                <div><strong>{profile.unverified}</strong><span>no verificados</span></div>
-                <div><strong>{profile.rejected}</strong><span>rechazados</span></div>
-              </div>
-            ) : null}
-
-            {token ? (
-              <section className="panelBlock" style={{ borderBottom: "none", marginTop: "16px", padding: 0 }}>
-                <h2 className="sectionTitle"><BellRing size={15} /> Pendientes</h2>
-                <div className="notificationList">
-                  {["Valida una empresa cercana", "Aporta fuente para un reporte", "Revisa posible duplicado"].map((item) => (
-                    <button className="notificationItem" key={item} type="button" onClick={() => setToast(item)}>
-                      {item}
-                    </button>
-                  ))}
-                </div>
-              </section>
-            ) : null}
-          </section>
-
-          <section className="panelBlock" style={{ borderBottom: "none", marginTop: "16px" }}>
-            <h2 className="sectionTitle">Gestionar Cuenta</h2>
-            {!token ? (
-              <>
-                <div className="authGrid">
-                  <button className="secondaryButton" type="button" onClick={() => { setAuthMode("login"); setShowAccountModal(false); }}>
-                    <LogIn size={17} />
-                    Login
-                  </button>
-                  <button className="secondaryButton" type="button" onClick={() => { setAuthMode("register"); setShowAccountModal(false); }}>
-                    <UserPlus size={17} />
-                    Registro
-                  </button>
-                </div>
-                <div className="roleSwitch" aria-label="Rol de registro">
-                  {(["CITIZEN", "BUSINESS", "ADMIN"] as const).map((role) => (
-                    <button key={role} className={activeRole === role ? "active" : ""} type="button" onClick={() => setActiveRole(role)}>
-                      {roleLabel(role)}
-                    </button>
-                  ))}
-                </div>
-              </>
-            ) : (
-              <button className="secondaryButton fullButton" type="button" onClick={handleLogout} style={{ color: "#d93025" }}>
-                <LogIn size={17} style={{ transform: "rotate(180deg)" }} />
-                Cerrar sesion
-              </button>
-            )}
-          </section>
-        </Modal>
-      ) : null}
-
-      {showReportForm ? (
-        <Modal title="Nuevo reporte" onClose={() => setShowReportForm(false)}>
-          <form className="fieldStack" onSubmit={createReport}>
-            <div className="field">
-              <label htmlFor="category">Categoria</label>
-              <select id="category" name="category" defaultValue="Hurto">
-                <option>Hurto</option>
-                <option>Acoso</option>
-                <option>Iluminacion</option>
-                <option>Alerta</option>
+            {/* Selector de Ciudad */}
+            <div className="relative flex items-center gap-1 bg-surface-container-low border border-outline-variant/50 rounded-full px-3 py-1.5 shadow-sm text-on-surface hover:border-primary/30 transition-all">
+              <MapPin size={13} className="text-primary shrink-0" />
+              <select 
+                value={currentCity} 
+                onChange={(e) => handleCityChange(e.target.value)} 
+                className="bg-transparent border-none outline-none text-xs font-bold text-on-surface cursor-pointer pr-1 py-0.5 focus:ring-0 focus:outline-none"
+              >
+                {Object.keys(CITIES_CONFIG).map((city) => (
+                  <option key={city} value={city} className="bg-surface font-semibold text-on-surface">
+                    {city}
+                  </option>
+                ))}
               </select>
             </div>
-            <div className="field">
-              <label htmlFor="title">Titulo</label>
-              <input id="title" name="title" placeholder="Ej. Hurto cerca de parada" required minLength={5} />
-            </div>
-            <div className="field">
-              <label htmlFor="description">Descripcion</label>
-              <textarea id="description" name="description" placeholder="Sin nombres, placas ni datos personales." required minLength={10} />
-            </div>
-            <div className="field">
-              <label htmlFor="zone">Zona</label>
-              <input id="zone" name="zone" placeholder="Centro, Manga, Getsemani" />
-            </div>
-            <div className="field" style={{ flexDirection: "row", alignItems: "center", gap: "8px" }}>
-              <input type="checkbox" id="is_womens_mode_relevant" name="is_womens_mode_relevant" style={{ width: "auto", margin: 0 }} />
-              <label htmlFor="is_womens_mode_relevant" style={{ marginBottom: 0, fontWeight: "normal" }}>¿Es relevante para el Modo Mujeres? (Ej. acoso, zona sola)</label>
-            </div>
-            <div className="coordinateGrid">
-              <input name="lat" id="reportLat" aria-label="Latitud" defaultValue="10.4236" />
-              <input name="lng" id="reportLng" aria-label="Longitud" defaultValue="-75.5478" />
-            </div>
-            <button
-              type="button"
-              className="geoButton"
-              onClick={() => {
-                if (!navigator.geolocation) { setToast("Tu navegador no soporta geolocalización."); return; }
-                setToast("Obteniendo tu ubicación...");
-                navigator.geolocation.getCurrentPosition(
-                  (pos) => {
-                    const latEl = document.getElementById("reportLat") as HTMLInputElement | null;
-                    const lngEl = document.getElementById("reportLng") as HTMLInputElement | null;
-                    if (latEl) latEl.value = pos.coords.latitude.toFixed(6);
-                    if (lngEl) lngEl.value = pos.coords.longitude.toFixed(6);
-                    setToast(`Ubicación detectada: ${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`);
-                  },
-                  () => setToast("No se pudo obtener la ubicación. Verifica los permisos.")
-                );
-              }}
-            >
-              <Navigation size={14} /> Usar mi ubicación GPS
+          </div>
+
+          <div className="flex items-center gap-1 sm:gap-4">
+            {toast && (
+              <div key={toastKey} className={`hidden lg:flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-medium animate-fadeInUp ${showWomensMode ? "bg-pink-100 text-pink-700 border border-pink-200" : "bg-primary-fixed text-on-primary-fixed border border-primary-fixed-dim"}`}>
+                <BellRing size={14} />
+                {toast}
+              </div>
+            )}
+            
+            <button className="p-1.5 sm:p-2 text-outline hover:text-primary transition-colors relative" onClick={handleCheckAlerts}>
+              <Bell className="w-5 h-5 sm:w-[20px] sm:h-[20px]" />
+              <span className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 w-2 h-2 bg-error rounded-full border-2 border-surface"></span>
             </button>
-            <button className="primaryButton fullButton" type="submit">Crear reporte</button>
-          </form>
-        </Modal>
-      ) : null}
+            
+            <button className="p-1.5 sm:p-2 text-outline hover:text-primary transition-colors" onClick={() => setDarkMode(!darkMode)}>
+              {darkMode ? <Sun className="w-5 h-5 sm:w-[20px] sm:h-[20px]" /> : <Moon className="w-5 h-5 sm:w-[20px] sm:h-[20px]" />}
+            </button>
 
-      {showWomensModeConfirm ? (
-        <Modal title="Confirmar Identidad" onClose={() => setShowWomensModeConfirm(false)}>
-          <div className="fieldStack">
-            <p className="subtleText" style={{ fontSize: "1rem", lineHeight: "1.5" }}>
-              Esta funcion esta diseñada para priorizar la seguridad de las mujeres mediante el filtrado de zonas de acoso y falta de iluminacion.
-            </p>
-            <strong style={{ textAlign: "center", display: "block", margin: "16px 0", color: "#ff4d94", fontSize: "1.1rem" }}>
-              ¿Confirmas que eres mujer o viajas en un grupo de mujeres?
-            </strong>
-            <div className="authGrid">
-              <button className="primaryButton fullButton" type="button" onClick={confirmWomensMode} style={{ background: "#ff4d94" }}>
-                Si, confirmar
-              </button>
-              <button className="secondaryButton fullButton" type="button" onClick={() => setShowWomensModeConfirm(false)}>
-                No, cancelar
-              </button>
+            <button 
+              className="ml-1 sm:ml-2 flex items-center gap-1.5 sm:gap-2 bg-primary text-on-primary px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-bold hover:shadow-lg hover:shadow-primary/20 transition-all active:scale-95"
+              onClick={() => setShowReportForm(true)}
+            >
+              <Plus size={16} className="sm:w-[18px] sm:h-[18px]" />
+              <span className="hidden sm:inline">Nuevo Reporte</span>
+            </button>
+          </div>
+        </header>
+
+        {/* Scrollable Content */}
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 bg-background custom-scrollbar">
+          {/* Hero Grid: Stats & Map */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+            <StatCard icon={<Newspaper size={18} className="sm:w-5 sm:h-5" />} label="Alertas" value={filteredReports.length} color="bg-error/10 text-error" />
+            <StatCard icon={<ShieldCheck size={18} className="sm:w-5 sm:h-5" />} label="Puntos" value={businesses.length} color="bg-secondary/10 text-secondary" />
+            <StatCard icon={<Users size={18} className="sm:w-5 sm:h-5" />} label="Reputación" value={profile.reputation} color="bg-primary/10 text-primary" />
+            <StatCard icon={<Clock3 size={18} className="sm:w-5 sm:h-5" />} label="Ruta" value={showRoute ? "Activa" : "Desviada"} color="bg-on-tertiary-container/10 text-on-tertiary-container" />
+            
+            <div className="col-span-2 lg:col-span-4 bg-surface rounded-2xl border border-outline-variant/50 overflow-hidden h-[450px] sm:h-[550px] shadow-sm relative group">
+              <div className="absolute top-3 left-3 sm:top-4 sm:left-4 z-10 flex gap-1.5 sm:gap-2">
+                <button className={`px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold flex items-center gap-1.5 sm:gap-2 transition-all ${showReports ? "bg-primary text-on-primary" : "bg-surface text-on-surface border border-outline-variant"}`} onClick={() => setShowReports(!showReports)}>
+                  <SlidersHorizontal size={12} className="sm:w-3.5 sm:h-3.5" /> Incidentes
+                </button>
+                <button className={`px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold flex items-center gap-1.5 sm:gap-2 transition-all ${showBusinesses ? "bg-primary text-on-primary" : "bg-surface text-on-surface border border-outline-variant"}`} onClick={() => setShowBusinesses(!showBusinesses)}>
+                  <Building2 size={12} className="sm:w-3.5 sm:h-3.5" /> Puntos Seguros
+                </button>
+              </div>
+              <MapShell
+                reports={filteredReports}
+                businesses={businesses}
+                showReports={showReports}
+                showBusinesses={showBusinesses}
+                showRoute={showRoute}
+                routeCoordinates={routeCoordinates}
+                onSelectReport={(id) => setToast(reports.find((r) => r.id === id)?.title ?? "Reporte seleccionado")}
+                center={CITIES_CONFIG[currentCity]?.center}
+                bounds={CITIES_CONFIG[currentCity]?.bounds}
+                onLocateUser={handleUserLocated}
+              />
             </div>
           </div>
-        </Modal>
-      ) : null}
-    </main>
-  );
-}
 
-function VoteForm({ _data, onSubmit, onClose }: { _data: { id: string; type: "report" | "business"; vote: "SI" | "NO" | "NO_SE" }; onSubmit: (reason: string) => void; onClose: () => void }) {
-  return (
-    <Modal title="Solicitud de cambio de voto" onClose={onClose}>
-      <form className="fieldStack" onSubmit={(e) => { e.preventDefault(); onSubmit(new FormData(e.currentTarget).get("reason") as string); }}>
-        <p className="subtleText">Has superado el limite de cambios permitidos para este item. Para realizar un nuevo cambio, por favor explica el motivo para revision del administrador.</p>
-        <div className="field">
-          <label htmlFor="voteReason">Motivo del cambio</label>
-          <textarea id="voteReason" name="reason" placeholder="Explica por que deseas cambiar tu voto nuevamente..." required minLength={10} />
-        </div>
-        <button className="primaryButton fullButton" type="submit">Enviar solicitud</button>
-      </form>
-    </Modal>
-  );
-}
+          {/* Admin Panel Controls */}
+          {activeTab === "admin" && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 animate-fadeInUp">
+              {/* Admin Actions */}
+              <div className="md:col-span-2 bg-surface p-6 rounded-2xl border border-outline-variant/50 shadow-sm">
+                <h3 className="font-headline font-bold text-base text-on-surface mb-4 flex items-center gap-2">
+                  <ShieldCheck size={18} className="text-primary" /> Acciones de Administración
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button 
+                    onClick={() => adminAction("merge")}
+                    className="flex items-center gap-3 p-3 bg-surface-container-low hover:bg-primary/5 hover:border-primary/30 border border-outline-variant/50 rounded-xl text-xs font-bold transition-all text-left text-on-surface cursor-pointer"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                      <GitMerge size={16} />
+                    </div>
+                    <div>
+                      <p className="font-extrabold text-xs">Fusionar Duplicados</p>
+                      <p className="text-[10px] text-outline font-medium">Une reportes similares</p>
+                    </div>
+                  </button>
+                  <button 
+                    onClick={() => adminAction("hide")}
+                    className="flex items-center gap-3 p-3 bg-surface-container-low hover:bg-error/5 hover:border-error/30 border border-outline-variant/50 rounded-xl text-xs font-bold transition-all text-left text-on-surface cursor-pointer"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-error/10 text-error flex items-center justify-center shrink-0">
+                      <EyeOff size={16} />
+                    </div>
+                    <div>
+                      <p className="font-extrabold text-xs">Ocultar Reporte</p>
+                      <p className="text-[10px] text-outline font-medium">Oculta el más reciente</p>
+                    </div>
+                  </button>
+                  <button 
+                    onClick={() => adminAction("approve")}
+                    className="flex items-center gap-3 p-3 bg-surface-container-low hover:bg-secondary/5 hover:border-secondary/30 border border-outline-variant/50 rounded-xl text-xs font-bold transition-all text-left text-on-surface cursor-pointer"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-secondary/10 text-secondary flex items-center justify-center shrink-0">
+                      <BadgeCheck size={16} />
+                    </div>
+                    <div>
+                      <p className="font-extrabold text-xs">Aprobar Empresa</p>
+                      <p className="text-[10px] text-outline font-medium">Verifica punto seguro</p>
+                    </div>
+                  </button>
+                  <button 
+                    onClick={() => adminAction("fake")}
+                    className="flex items-center gap-3 p-3 bg-surface-container-low hover:bg-error/5 hover:border-error/30 border border-outline-variant/50 rounded-xl text-xs font-bold transition-all text-left text-on-surface cursor-pointer"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-error/10 text-error flex items-center justify-center shrink-0">
+                      <Flag size={16} />
+                    </div>
+                    <div>
+                      <p className="font-extrabold text-xs">Descartar Bulo</p>
+                      <p className="text-[10px] text-outline font-medium">Marca como no verídico</p>
+                    </div>
+                  </button>
+                </div>
+              </div>
 
-function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
-  return (
-    <div className="modalScrim" role="presentation">
-      <section className="modalPanel" role="dialog" aria-modal="true" aria-label={title}>
-        <div className="modalHeader">
-          <div className="modalTitle">
-            <BrandLogo size={28} />
-            <h2>{title}</h2>
+              {/* Audit Log */}
+              <div className="bg-surface p-6 rounded-2xl border border-outline-variant/50 shadow-sm flex flex-col h-[200px] md:h-auto overflow-hidden">
+                <h3 className="font-headline font-bold text-base text-on-surface mb-3 flex items-center gap-2 shrink-0">
+                  <Users size={18} className="text-outline" /> Log de Auditoría
+                </h3>
+                <div className="flex-1 overflow-y-auto space-y-2 custom-scrollbar pr-1">
+                  {auditLog.map((log, i) => (
+                    <div key={i} className="flex items-start gap-2.5 p-2 bg-surface-container-lowest rounded-lg border border-outline-variant/20 text-[11px] font-medium leading-normal text-on-surface">
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
+                      <span>{log}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Manifest Section */}
+          <div className="bg-surface rounded-2xl border border-outline-variant/50 shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-outline-variant/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h2 className="font-headline font-bold text-lg text-on-surface">
+                  {activeTab === "map" ? "Manifiesto de Incidentes" : activeTab === "business" ? "Directorio de Puntos Seguros" : "Log de Auditoría"}
+                </h2>
+                <p className="text-xs text-outline">Listado completo basado en filtros actuales</p>
+              </div>
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+                {activeTab === "business" && (
+                  <button 
+                    onClick={() => setShowBusinessForm(true)}
+                    className="flex items-center gap-1.5 bg-secondary text-on-secondary px-3.5 py-1.5 rounded-xl text-xs font-bold hover:shadow-lg hover:shadow-secondary/20 transition-all active:scale-[0.98] mr-2"
+                  >
+                    <Plus size={14} />
+                    <span>Registrar Establecimiento</span>
+                  </button>
+                )}
+                <FilterSelect icon={<Filter size={14} />} value={categoryFilter} onChange={setCategoryFilter} options={["todas", "hurto", "acoso", "iluminacion"]} />
+                <FilterSelect icon={<Clock3 size={14} />} value={dateFilter} onChange={setDateFilter} options={["24h", "7d", "30d"]} />
+                <FilterSelect icon={<ShieldCheck size={14} />} value={verificationFilter} onChange={setVerificationFilter} options={["todos", "verificado", "comunidad", "no-verificado"]} />
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm border-collapse">
+                <thead>
+                  <tr className="bg-surface-container-lowest text-outline font-medium">
+                    <th className="px-6 py-3 border-b border-outline-variant/50">ID / Título</th>
+                    <th className="px-6 py-3 border-b border-outline-variant/50">Categoría & Zona</th>
+                    <th className="px-6 py-3 border-b border-outline-variant/50">Estado</th>
+                    <th className="px-6 py-3 border-b border-outline-variant/50">Votos</th>
+                    <th className="px-6 py-3 border-b border-outline-variant/50 text-right">Acción</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-outline-variant/30">
+                  {activeTab === "map" || activeTab === "admin" ? filteredReports.map((report) => (
+                    <tr key={report.id} className="hover:bg-surface-container-low transition-colors group">
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col">
+                          <span className="text-[10px] font-bold text-primary opacity-60 uppercase tracking-tighter">#{report.id.slice(-4)}</span>
+                          <span className="font-bold text-on-surface group-hover:text-primary transition-colors">{report.title}</span>
+                          <span className="text-xs text-outline line-clamp-1">{report.description}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col">
+                          <span className="font-medium text-on-surface">{report.category}</span>
+                          <span className="text-xs text-outline">{report.zone} · {report.time}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                          report.status === "VERIFICADO" ? "bg-secondary/10 text-secondary" : 
+                          report.status === "COMUNITARIAMENTE_CONFIABLE" ? "bg-primary/10 text-primary" : 
+                          "bg-error/10 text-error"
+                        }`}>
+                          {statusLabel(report.status)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <VoteBadge icon={<Check size={10} />} value={report.votes.yes} active={userVotes[report.id] === "SI"} onClick={() => voteReport(report.id, "SI")} color="green" />
+                          <VoteBadge icon={<X size={10} />} value={report.votes.no} active={userVotes[report.id] === "NO"} onClick={() => voteReport(report.id, "NO")} color="red" />
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <button className="p-2 hover:bg-surface-container-high rounded-lg transition-colors text-outline">
+                          <ChevronRight size={18} />
+                        </button>
+                      </td>
+                    </tr>
+                  )) : businesses.map((business) => (
+                    <tr key={business.id} className="hover:bg-surface-container-low transition-colors group">
+                      <td className="px-6 py-4 font-bold text-on-surface">{business.name}</td>
+                      <td className="px-6 py-4 text-outline">{business.category} · {business.zone}</td>
+                      <td className="px-6 py-4">
+                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${business.status === "APROBADO" ? "bg-secondary/10 text-secondary" : "bg-error/10 text-error"}`}>
+                          {business.status === "APROBADO" ? "Seguro" : "Pendiente"}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-on-surface font-bold">Score: {business.score}</td>
+                      <td className="px-6 py-4 text-right">
+                        <button className="text-primary font-bold text-xs hover:underline" onClick={() => startCampaign(business.id)}>Contratar</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-          <button className="iconButton" type="button" onClick={onClose} aria-label="Cerrar"><X size={18} /></button>
+        </main>
+      </div>
+
+      {/* Modals - Preserving functionality with new styles */}
+      {authMode && (
+        <AuthModal
+          authMode={authMode}
+          setAuthMode={setAuthMode}
+          verificationEmail={verificationEmail}
+          activeRole={activeRole}
+          handleAuth={handleAuth}
+          handleVerify={handleVerify}
+          handleResendCode={handleResendCode}
+          roleLabel={roleLabel}
+        />
+      )}
+
+      {showReportForm && (
+        <ReportFormModal
+          onClose={() => setShowReportForm(false)}
+          createReport={createReport}
+          reportZone={reportZone}
+          handleZoneChange={handleZoneChange}
+          reportSuggestions={reportSuggestions}
+          handleSelectSuggestion={handleSelectSuggestion}
+        />
+      )}
+
+      {showBusinessForm && (
+        <BusinessFormModal
+          onClose={() => setShowBusinessForm(false)}
+          createBusiness={createBusiness}
+          defaultLat={CITIES_CONFIG[currentCity]?.center[1]}
+          defaultLng={CITIES_CONFIG[currentCity]?.center[0]}
+        />
+      )}
+
+      {showAccountModal && (
+        <NewModal title="Perfil de Usuario" onClose={() => setShowAccountModal(false)}>
+          <div className="space-y-5">
+            {/* User Header Card with subtle gradient */}
+            <div className="relative overflow-hidden p-4 bg-gradient-to-br from-primary/10 to-secondary/5 rounded-2xl border border-outline-variant/30 flex items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center text-on-primary text-xl font-black shadow-lg">
+                {profile.alias[0].toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-headline font-extrabold text-base text-on-surface truncate">{profile.alias}</h3>
+                <p className="text-[11px] text-outline font-semibold mb-1">{profile.role}</p>
+                <div className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary border border-primary/20 text-[9px] font-black rounded-full uppercase tracking-wider">
+                  <BadgeCheck size={9} />
+                  {profile.rank}
+                </div>
+              </div>
+            </div>
+
+            {token ? (
+              <>
+                {/* Rank Progression */}
+                <div className="p-4 bg-surface-container-low border border-outline-variant/40 rounded-2xl space-y-2">
+                  <div className="flex justify-between items-center text-[11px] font-bold">
+                    <span className="text-outline">Rango: {profile.rank}</span>
+                    <span className="text-primary font-black">
+                      {getRankProgress(profile.reputation).nextRank !== "Máximo Rango" 
+                        ? `Próximo: ${getRankProgress(profile.reputation).nextRank}` 
+                        : "Nivel Máximo"}
+                    </span>
+                  </div>
+                  
+                  {/* Progress Bar */}
+                  <div className="relative w-full h-2.5 bg-surface-container-high rounded-full overflow-hidden border border-outline-variant/20">
+                    <div 
+                      className="h-full bg-gradient-to-r from-primary to-secondary transition-all duration-700 ease-out rounded-full"
+                      style={{ width: `${getRankProgress(profile.reputation).progress}%` }}
+                    />
+                  </div>
+                  
+                  <div className="flex justify-between items-center text-[9px] text-outline font-bold">
+                    <span>{profile.reputation} pts</span>
+                    {getRankProgress(profile.reputation).nextRank !== "Máximo Rango" ? (
+                      <span>Faltan {getRankProgress(profile.reputation).pointsNeeded} pts para el siguiente rango</span>
+                    ) : (
+                      <span>¡Felicidades, eres Embajador!</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Stats Grid */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 bg-surface-container-low border border-outline-variant/30 rounded-xl">
+                    <p className="text-[9px] font-extrabold text-outline uppercase tracking-wider">Puntos / Reputación</p>
+                    <p className="text-sm font-headline font-black text-primary mt-0.5">{profile.reputation} pts</p>
+                  </div>
+                  <div className="p-3 bg-surface-container-low border border-outline-variant/30 rounded-xl">
+                    <p className="text-[9px] font-extrabold text-outline uppercase tracking-wider">Votos Emitidos</p>
+                    <p className="text-sm font-headline font-black text-on-surface mt-0.5">{profile.votes} votos</p>
+                  </div>
+                  <div className="p-3 bg-surface-container-low border border-outline-variant/30 rounded-xl col-span-2">
+                    <p className="text-[9px] font-extrabold text-outline uppercase tracking-wider mb-2">Desglose de Reportes</p>
+                    <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                      <div className="bg-secondary/5 border border-secondary/20 rounded-lg p-1.5">
+                        <span className="block font-black text-secondary">{profile.verified}</span>
+                        <span className="text-[8px] text-outline font-bold uppercase">Verificados</span>
+                      </div>
+                      <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg p-1.5">
+                        <span className="block font-black text-amber-600">{profile.unverified}</span>
+                        <span className="text-[8px] text-outline font-bold uppercase">Pendientes</span>
+                      </div>
+                      <div className="bg-error/5 border border-error/20 rounded-lg p-1.5">
+                        <span className="block font-black text-error">{profile.rejected}</span>
+                        <span className="text-[8px] text-outline font-bold uppercase">Rechazados</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Logout Button */}
+                <button 
+                  onClick={handleLogout} 
+                  className="w-full py-2.5 bg-error/5 hover:bg-error/10 border border-error/20 text-error rounded-xl font-bold text-xs transition-all active:scale-[0.98] mt-2"
+                >
+                  Cerrar sesión
+                </button>
+              </>
+            ) : (
+              <div className="space-y-3">
+                <button onClick={() => { setAuthMode("login"); setShowAccountModal(false); }} className="w-full bg-primary text-on-primary py-3 rounded-xl font-bold">Login</button>
+                <button onClick={() => { setAuthMode("register"); setShowAccountModal(false); }} className="w-full bg-surface border border-outline-variant py-3 rounded-xl font-bold">Crear Cuenta</button>
+              </div>
+            )}
+          </div>
+        </NewModal>
+      )}
+
+      {showWomensModeConfirm && (
+        <NewModal title="Confirmar Acceso Seguro" onClose={() => setShowWomensModeConfirm(false)}>
+          <div className="text-center space-y-4">
+            <div className="w-16 h-16 bg-pink-100 text-pink-500 rounded-full flex items-center justify-center mx-auto mb-2 animate-pulse-pink">
+              <Heart size={32} fill="currentColor" />
+            </div>
+            <p className="text-on-surface font-medium leading-relaxed">
+              El <strong>Modo Mujeres</strong> prioriza zonas con mejor iluminación y reportes de seguridad femenina.
+            </p>
+            <p className="text-sm text-outline italic">¿Confirmas que este modo es adecuado para tu viaje?</p>
+            <div className="pt-4 space-y-2">
+              <button onClick={confirmWomensMode} className="w-full bg-pink-500 text-white py-3 rounded-xl font-bold hover:bg-pink-600 transition-all">Confirmar identidad</button>
+              <button onClick={() => setShowWomensModeConfirm(false)} className="w-full py-3 text-outline font-bold">Cancelar</button>
+            </div>
+          </div>
+        </NewModal>
+      )}
+      
+      {showVoteForm && (
+        <VoteForm 
+          data={showVoteForm} 
+          onSubmit={submitVoteRequest} 
+          onClose={() => setShowVoteForm(null)} 
+        />
+      )}
+
+      {/* Toast Overlay for Mobile */}
+      {toast && (
+        <div className="lg:hidden fixed bottom-6 left-6 right-6 z-[60] animate-fadeInUp">
+          <div className={`px-4 py-3 rounded-2xl shadow-2xl flex items-center justify-between gap-3 border ${showWomensMode ? "bg-pink-500 text-white border-pink-400" : "bg-primary text-on-primary border-primary-container"}`}>
+            <span className="text-sm font-bold truncate">{toast}</span>
+            <button onClick={() => setToastRaw("")}><X size={18} /></button>
+          </div>
         </div>
-        {children}
-      </section>
+      )}
     </div>
   );
 }
 
-function mapApiReport(report: Record<string, unknown>): ReportItem {
-  const date = report.occurred_at ? new Date(String(report.occurred_at)) : new Date();
-  const timeStr = date.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", hour12: true });
-
-  return {
-    id: String(report.id),
-    title: String(report.title),
-    description: String(report.description),
-    type: String(report.report_type) === "OFICIAL" ? "OFICIAL" : "INSTANTANEO",
-    status: String(report.status),
-    category: String(report.incident_category),
-    zone: String(report.neighborhood ?? "Cartagena"),
-    time: timeStr,
-    author: "Usuario",
-    authorRank: "Ciudadano",
-    children: Number(report.duplicate_group_count ?? 0),
-    source: { status: "PENDIENTE", label: "sin fuente aceptada", media: "pendiente" },
-    votes: {
-      yes: Number(report.community_yes_count ?? 0),
-      no: Number(report.community_no_count ?? 0),
-      unknown: Number(report.community_unknown_count ?? 0),
-    },
-    lat: Number(report.lat),
-    lng: Number(report.lng),
-    apiBacked: true,
-    isWomensModeRelevant: Boolean(report.is_womens_mode_relevant),
-  };
+// Sub-components
+function VoteForm({ data, onSubmit, onClose }: { data: { id: string; type: "report" | "business"; vote: "SI" | "NO" | "NO_SE" }; onSubmit: (reason: string) => void; onClose: () => void }) {
+  return (
+    <NewModal title="Solicitud de Cambio de Voto" onClose={onClose}>
+      <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); onSubmit(new FormData(e.currentTarget).get("reason") as string); }}>
+        <p className="text-sm text-outline leading-relaxed">Has superado el límite de cambios permitidos para este item. Por favor, explica el motivo para revisión del administrador.</p>
+        <div className="space-y-1">
+          <label className="text-sm font-bold text-on-surface/70 ml-1">Motivo del cambio</label>
+          <textarea name="reason" placeholder="Explica por qué deseas cambiar tu voto nuevamente..." required minLength={10} className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant rounded-xl outline-none focus:ring-2 focus:ring-primary/20 transition-all h-32" />
+        </div>
+        <button type="submit" className="w-full bg-primary text-on-primary py-3 rounded-xl font-bold">Enviar solicitud</button>
+      </form>
+    </NewModal>
+  );
 }
 
-function mapApiBusiness(business: Record<string, unknown>): BusinessItem {
-  return {
-    id: String(business.id),
-    name: String(business.name),
-    category: String(business.category),
-    status: String(business.status),
-    label: String(business.sponsor_label ?? "Sin campana"),
-    zone: String(business.address_text ?? "Cartagena"),
-    score: Number(business.reputation_score ?? 0),
-    lat: Number(business.lat),
-    lng: Number(business.lng),
-    apiBacked: true,
-  };
+function SidebarNavItem({ icon, label, active, onClick, badge, highlight }: { icon: React.ReactNode; label: string; active?: boolean; onClick: () => void; badge?: number; highlight?: boolean }) {
+  return (
+    <button 
+      onClick={onClick}
+      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all font-bold text-sm group ${
+        active 
+          ? "bg-primary-container text-on-primary-container shadow-inner" 
+          : highlight 
+            ? "text-pink-300 hover:bg-pink-500/10"
+            : "text-on-primary/60 hover:bg-on-primary/5 hover:text-on-primary"
+      }`}
+    >
+      <span className={active ? "text-on-primary-container" : "text-on-primary/40 group-hover:text-on-primary"}>{icon}</span>
+      <span className="flex-1 text-left">{label}</span>
+      {badge && <span className="bg-error text-white text-[10px] px-2 py-0.5 rounded-full">{badge}</span>}
+    </button>
+  );
 }
 
-function mergeById<T extends { id: string }>(demo: T[], mapped: T[], extra: T[]) {
-  const map = new Map<string, T>();
-  [...demo, ...extra, ...mapped].forEach((item) => map.set(item.id, item));
-  return Array.from(map.values());
+function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: string | number; color: string }) {
+  return (
+    <div className="bg-surface p-3 rounded-xl border border-outline-variant/50 shadow-sm flex items-center gap-3">
+      <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${color}`}>
+        {icon}
+      </div>
+      <div className="min-w-0">
+        <p className="text-[10px] font-bold text-outline uppercase tracking-wider truncate">{label}</p>
+        <p className="text-lg font-headline font-extrabold text-on-surface truncate">{value}</p>
+      </div>
+    </div>
+  );
 }
 
-function roleLabel(role: string) {
-  if (role === "BUSINESS") return "Empresa";
-  if (role === "ADMIN") return "Admin";
-  return "Ciudadano";
+function FilterSelect({ icon, value, onChange, options }: { icon: React.ReactNode; value: string; onChange: (v: string) => void; options: string[] }) {
+  return (
+    <div className="flex items-center gap-2 bg-surface-container-low border border-outline-variant/50 rounded-lg px-2 py-1">
+      <span className="text-outline">{icon}</span>
+      <select 
+        value={value} 
+        onChange={(e) => onChange(e.target.value)} 
+        className="bg-transparent border-none outline-none text-xs font-bold text-on-surface py-0.5 pr-2"
+      >
+        {options.map(opt => <option key={opt} value={opt}>{opt.charAt(0).toUpperCase() + opt.slice(1)}</option>)}
+      </select>
+    </div>
+  );
 }
 
-function rankLabel(rank: string) {
-  if (rank === "EMBAJADOR") return "Embajador";
-  if (rank === "VERIFICADOR") return "Verificador";
-  if (rank === "COLABORADOR") return "Colaborador";
-  return "Ciudadano";
+function VoteBadge({ icon, value, active, onClick, color }: { icon: React.ReactNode; value: number; active: boolean; onClick: () => void; color: "green" | "red" }) {
+  const colorClass = color === "green" ? "hover:bg-green-100 text-green-600" : "hover:bg-red-100 text-red-600";
+  const activeClass = active ? (color === "green" ? "bg-green-100 ring-1 ring-green-600" : "bg-red-100 ring-1 ring-red-600") : "bg-surface-container-low";
+  
+  return (
+    <button onClick={onClick} className={`flex items-center gap-1.5 px-2 py-1 rounded-lg transition-all ${colorClass} ${activeClass}`}>
+      {icon}
+      <span className="text-xs font-bold">{value}</span>
+    </button>
+  );
 }
 
-function statusLabel(status: string) {
-  if (status === "VERIFICADO") return "Verificado";
-  if (status === "COMUNITARIAMENTE_CONFIABLE") return "Confiable";
-  if (status === "RECHAZADO") return "Rechazado";
-  if (status === "OCULTO") return "Oculto";
-  return "No verificado";
+function StatPill({ label, value, color }: { label: string; value: number; color: string }) {
+  return (
+    <div className="bg-surface-container-lowest p-3 rounded-xl border border-outline-variant/30 text-center">
+      <p className="text-[10px] font-bold text-outline uppercase">{label}</p>
+      <p className={`text-lg font-extrabold ${color}`}>{value}</p>
+    </div>
+  );
 }
 
-function statusClass(status: string) {
-  if (status === "VERIFICADO") return "status verified";
-  if (status === "COMUNITARIAMENTE_CONFIABLE") return "status trusted";
-  if (status === "RECHAZADO" || status === "OCULTO") return "status rejected";
-  return "status unverified";
-}
-
-function rankClass(rank: string) {
-  if (rank === "Embajador") return "rankPill rankAmbassador";
-  if (rank === "Verificador") return "rankPill rankVerifier";
-  if (rank === "Colaborador") return "rankPill rankContributor";
-  return "rankPill";
-}
-
-function sourceClass(status: string) {
-  if (status === "ACEPTADO") return "source accepted";
-  if (status === "RECHAZADO") return "source rejected";
-  return "source pending";
-}
-
-function hostFromUrl(url: string) {
-  try {
-    return new URL(url).host;
-  } catch {
-    return "fuente externa";
-  }
+function NewModal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-on-background/40 backdrop-blur-sm animate-fadeIn">
+      <div className="bg-surface w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border border-outline-variant animate-fadeInUp">
+        <div className="px-6 py-4 border-b border-outline-variant/50 flex items-center justify-between bg-surface-container-low">
+          <h2 className="font-headline font-extrabold text-on-surface">{title}</h2>
+          <button onClick={onClose} className="p-1 hover:bg-outline-variant/30 rounded-full transition-colors"><X size={20} /></button>
+        </div>
+        <div className="p-6">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
 }

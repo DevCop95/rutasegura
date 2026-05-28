@@ -5,39 +5,32 @@ type BrandLogoProps = {
 };
 
 export default function BrandLogo({ className = "", size = 36, showText = false }: BrandLogoProps) {
+  // Use a standard img tag with a simple cache-buster to avoid Next.js Image configuration issues
+  // for local development assets while ensuring the new logo is picked up.
+  const logoSrc = `/logo-rutasegura.png?v=1`; 
+
   return (
-    <span className={`brandLogo ${showText ? "brandLogoLockup" : ""} ${className}`} aria-label="RutaSegura">
-      <svg
-        aria-hidden="true"
-        className="brandLogoMark"
-        width={size}
-        height={size}
-        viewBox="0 0 64 64"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
+    <span className={`flex items-center gap-2 ${className}`} aria-label="RutaSegura">
+      <div 
+        style={{ width: size, height: size }} 
+        className="relative flex-shrink-0"
       >
-        <rect width="64" height="64" rx="16" fill="#1D7A5C" />
-        <path
-          d="M32 10.5L48.5 17V28.8C48.5 40.5 41.4 50.1 32 54.2C22.6 50.1 15.5 40.5 15.5 28.8V17L32 10.5Z"
-          fill="#FFFFFF"
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={logoSrc}
+          alt="RutaSegura Logo"
+          style={{ 
+            width: '100%', 
+            height: '100%', 
+            objectFit: 'contain',
+            filter: 'brightness(0) invert(1)' // This turns the image white
+          }}
         />
-        <path
-          d="M22.8 39.2C27.4 31.6 36.7 35.4 40.9 26.3"
-          stroke="#255C99"
-          strokeWidth="5"
-          strokeLinecap="round"
-        />
-        <circle cx="23" cy="39" r="4.5" fill="#B36B00" />
-        <path
-          d="M40.8 19.5C36.6 19.5 33.2 22.8 33.2 27C33.2 32.7 40.8 39.8 40.8 39.8C40.8 39.8 48.4 32.7 48.4 27C48.4 22.8 45 19.5 40.8 19.5Z"
-          fill="#1D7A5C"
-        />
-        <circle cx="40.8" cy="27" r="2.6" fill="#FFFFFF" />
-      </svg>
+      </div>
       {showText ? (
-        <span className="brandLogoText">
-          <strong>RutaSegura</strong>
-          <span>Cartagena</span>
+        <span className="flex flex-col">
+          <strong className="font-headline font-extrabold text-primary leading-tight">RutaSegura</strong>
+          <span className="text-[10px] font-bold text-outline uppercase tracking-widest">Cartagena</span>
         </span>
       ) : null}
     </span>

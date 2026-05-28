@@ -55,17 +55,26 @@ type MapProps = Omit<MapOptions, "container" | "style"> & {
   style?: MapLibreGL.StyleSpecification | string;
 };
 
-export function Map({ children, className, style = osmStyle, center, zoom = 12, ...options }: MapProps) {
+export function Map({ children, className, style, center, zoom = 12, ...options }: MapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [map, setMap] = useState<MapLibreGL.Map | null>(null);
   const [loaded, setLoaded] = useState(false);
+
+  const mapStyle = useMemo(() => {
+    if (style) return style;
+    const maptilerKey = process.env.NEXT_PUBLIC_MAPTILER_KEY;
+    if (maptilerKey) {
+      return `https://api.maptiler.com/maps/streets-v2/style.json?key=${maptilerKey}`;
+    }
+    return osmStyle;
+  }, [style]);
 
   useEffect(() => {
     if (!containerRef.current) return;
 
     const instance = new MapLibreGL.Map({
       container: containerRef.current,
-      style,
+      style: mapStyle,
       center,
       zoom,
       attributionControl: { compact: true },
@@ -131,19 +140,26 @@ export function MapMarker({ longitude, latitude, children, onClick, ...options }
     [],
   );
 
+  const onClickRef = useRef(onClick);
+  useEffect(() => {
+    onClickRef.current = onClick;
+  }, [onClick]);
+
   useEffect(() => {
     if (!map) return;
     const element = marker.getElement();
     element.setAttribute("type", "button");
     element.classList.add("mapcnMarkerButton");
-    const handleClick = () => onClick?.();
+    const handleClick = () => {
+      onClickRef.current?.();
+    };
     element.addEventListener("click", handleClick);
     marker.addTo(map);
     return () => {
       element.removeEventListener("click", handleClick);
       marker.remove();
     };
-  }, [map, marker, onClick]);
+  }, [map, marker]);
 
   useEffect(() => {
     marker.setLngLat([longitude, latitude]);
@@ -162,32 +178,55 @@ export function MarkerContent({ children }: { children: ReactNode }) {
 
 export function MarkerPopup({ children }: { children: ReactNode }) {
   const { map, marker } = useMarker();
-  const container = useMemo(() => document.createElement("div"), []);
+  const [contentElement, setContentElement] = useState<HTMLDivElement | null>(null);
+
   const popup = useMemo(
     () =>
       new MapLibreGL.Popup({
         closeButton: false,
         offset: 18,
         maxWidth: "300px",
-      }).setDOMContent(container),
-    [container],
+      }).setHTML("<div></div>"),
+    [],
   );
 
   useEffect(() => {
     if (!map) return;
+
+    const handleOpen = () => {
+      const el = popup.getElement();
+      if (!el) return;
+      const contentEl = el.querySelector(".maplibregl-popup-content") as HTMLDivElement;
+      if (contentEl) {
+        contentEl.innerHTML = "";
+        setContentElement(contentEl);
+      }
+    };
+
+    const handleClose = () => {
+      setContentElement(null);
+    };
+
+    popup.on("open", handleOpen);
+    popup.on("close", handleClose);
+
     marker.setPopup(popup);
+
     return () => {
+      popup.off("open", handleOpen);
+      popup.off("close", handleClose);
       marker.setPopup(null);
       popup.remove();
     };
   }, [map, marker, popup]);
 
-  return createPortal(children, container);
+  return contentElement ? createPortal(children, contentElement) : null;
 }
 
 export function MarkerTooltip({ children }: { children: ReactNode }) {
   const { map, marker } = useMarker();
-  const container = useMemo(() => document.createElement("div"), []);
+  const [contentElement, setContentElement] = useState<HTMLDivElement | null>(null);
+
   const popup = useMemo(
     () =>
       new MapLibreGL.Popup({
@@ -195,25 +234,46 @@ export function MarkerTooltip({ children }: { children: ReactNode }) {
         closeOnClick: false,
         offset: 18,
         maxWidth: "220px",
-      }).setDOMContent(container),
-    [container],
+      }).setHTML("<div></div>"),
+    [],
   );
 
   useEffect(() => {
     if (!map) return;
+
+    const handleOpen = () => {
+      const el = popup.getElement();
+      if (!el) return;
+      const contentEl = el.querySelector(".maplibregl-popup-content") as HTMLDivElement;
+      if (contentEl) {
+        contentEl.innerHTML = "";
+        setContentElement(contentEl);
+      }
+    };
+
+    const handleClose = () => {
+      setContentElement(null);
+    };
+
+    popup.on("open", handleOpen);
+    popup.on("close", handleClose);
+
     const element = marker.getElement();
     const show = () => popup.setLngLat(marker.getLngLat()).addTo(map);
     const hide = () => popup.remove();
     element.addEventListener("mouseenter", show);
     element.addEventListener("mouseleave", hide);
+
     return () => {
+      popup.off("open", handleOpen);
+      popup.off("close", handleClose);
       element.removeEventListener("mouseenter", show);
       element.removeEventListener("mouseleave", hide);
       popup.remove();
     };
   }, [map, marker, popup]);
 
-  return createPortal(children, container);
+  return contentElement ? createPortal(children, contentElement) : null;
 }
 
 type MapControlsProps = {
@@ -236,9 +296,6 @@ export function MapControls({ onLocate, allowedBounds }: MapControlsProps) {
         longitude: position.coords.longitude,
         latitude: position.coords.latitude,
       };
-      if (allowedBounds && !isInsideBounds(coords.longitude, coords.latitude, allowedBounds)) {
-        return;
-      }
       map.flyTo({ center: [coords.longitude, coords.latitude], zoom: 15 });
       onLocate?.(coords);
     });
@@ -317,9 +374,15 @@ export function MapBoundary({ bounds }: { bounds: [[number, number], [number, nu
     });
 
     return () => {
-      if (map.getLayer(lineLayerId)) map.removeLayer(lineLayerId);
-      if (map.getLayer(fillLayerId)) map.removeLayer(fillLayerId);
-      if (map.getSource(sourceId)) map.removeSource(sourceId);
+      if (map) {
+        try {
+          if (map.getLayer(lineLayerId)) map.removeLayer(lineLayerId);
+          if (map.getLayer(fillLayerId)) map.removeLayer(fillLayerId);
+          if (map.getSource(sourceId)) map.removeSource(sourceId);
+        } catch (e) {
+          // Map or style already destroyed
+        }
+      }
     };
   }, [map, loaded, bounds, id]);
 
@@ -362,10 +425,102 @@ export function MapRoute({
     });
 
     return () => {
-      if (map.getLayer(layerId)) map.removeLayer(layerId);
-      if (map.getSource(sourceId)) map.removeSource(sourceId);
+      if (map) {
+        try {
+          if (map.getLayer(layerId)) map.removeLayer(layerId);
+          if (map.getSource(sourceId)) map.removeSource(sourceId);
+        } catch (e) {
+          // Map or style already destroyed
+        }
+      }
     };
   }, [map, loaded, coordinates, color, id]);
 
   return null;
+}
+
+export function HeatmapLayer({
+  points,
+}: {
+  points: { lng: number; lat: number }[];
+}) {
+  const { map, loaded } = useMap();
+  const reactId = useId();
+  const id = useMemo(() => `heatmap-${reactId.replaceAll(":", "")}`, [reactId]);
+
+  useEffect(() => {
+    if (!map || !loaded) return;
+    const sourceId = `${id}-source`;
+    const layerId = `${id}-layer`;
+
+    map.addSource(sourceId, {
+      type: "geojson",
+      data: {
+        type: "FeatureCollection",
+        features: points.map((p) => ({
+          type: "Feature",
+          properties: {},
+          geometry: { type: "Point", coordinates: [p.lng, p.lat] },
+        })),
+      },
+    });
+
+    map.addLayer({
+      id: layerId,
+      type: "heatmap",
+      source: sourceId,
+      paint: {
+        "heatmap-weight": ["interpolate", ["linear"], ["zoom"], 0, 1, 9, 1],
+        "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 0, 1, 9, 3],
+        "heatmap-color": [
+          "interpolate",
+          ["linear"],
+          ["heatmap-density"],
+          0, "rgba(0, 109, 67, 0)",
+          0.2, "#75f8b3",
+          0.5, "#fbbc00",
+          0.8, "#ba1a1a",
+        ],
+        "heatmap-radius": ["interpolate", ["linear"], ["zoom"], 0, 2, 9, 20],
+        "heatmap-opacity": 0.6,
+      },
+    });
+
+    return () => {
+      if (map) {
+        try {
+          if (map.getLayer(layerId)) map.removeLayer(layerId);
+          if (map.getSource(sourceId)) map.removeSource(sourceId);
+        } catch (e) {
+          // Map or style already destroyed
+        }
+      }
+    };
+  }, [map, loaded, points, id]);
+
+  return null;
+}
+
+export function UserMarker({ 
+  longitude, 
+  latitude 
+}: { 
+  longitude: number; 
+  latitude: number 
+}) {
+  return (
+    <MapMarker longitude={longitude} latitude={latitude}>
+      <MarkerContent>
+        <div className="relative flex items-center justify-center">
+          <div className="absolute w-8 h-8 bg-primary/30 rounded-full animate-ping" />
+          <div className="relative w-4 h-4 bg-primary border-2 border-white rounded-full shadow-lg" />
+        </div>
+      </MarkerContent>
+      <MarkerTooltip>
+        <div className="bg-primary text-white text-[10px] font-bold px-2 py-1 rounded shadow-lg">
+          Tu ubicación
+        </div>
+      </MarkerTooltip>
+    </MapMarker>
+  );
 }

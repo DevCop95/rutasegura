@@ -7,7 +7,6 @@ dependencies = [
   "alembic>=1.13",
   "bcrypt<5",
   "fastapi>=0.115",
-  "passlib[bcrypt]>=1.7",
   "pydantic-settings>=2.6",
   "python-jose[cryptography]>=3.3",
   "sqlalchemy>=2.0",

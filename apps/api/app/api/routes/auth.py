@@ -1,6 +1,6 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
-from fastapi import APIRouter, HTTPException, Response, status
+from fastapi import APIRouter, HTTPException, Response, status, BackgroundTasks
 from sqlalchemy import select
 
 from app.api.deps import CurrentUser, DbSession
@@ -8,35 +8,50 @@ from app.core.config import settings
 from app.core.security import create_access_token, hash_password, verify_password
 from app.models.enums import UserType
 from app.models.user import User
-from app.schemas.auth import LoginRequest, RegisterRequest, TokenResponse
+from app.schemas.auth import (
+    LoginRequest,
+    RegisterRequest,
+    TokenResponse,
+    RegisterResponse,
+    VerifyEmailRequest,
+    ResendCodeRequest,
+)
 from app.schemas.user import UserPublic
+from app.services import UserService
 
 router = APIRouter()
 
 
-@router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
-def register(payload: RegisterRequest, response: Response, db: DbSession) -> TokenResponse:
-    existing = db.scalar(select(User).where(User.email == payload.email.lower()))
-    if existing is not None:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="El email ya esta registrado.")
+@router.post("/register", response_model=RegisterResponse, status_code=status.HTTP_201_CREATED)
+def register(
+    payload: RegisterRequest,
+    background_tasks: BackgroundTasks,
+    db: DbSession,
+) -> RegisterResponse:
+    user = UserService.register(db, payload, background_tasks)
+    return RegisterResponse(status="verification_required", email=user.email)
 
-    requested_type = payload.user_type
-    if requested_type == UserType.ADMIN and settings.rutasegura_env != "local":
-        requested_type = UserType.CITIZEN
 
-    user = User(
-        email=payload.email.lower(),
-        alias=payload.alias,
-        password_hash=hash_password(payload.password),
-        user_type=requested_type,
-    )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-
+@router.post("/verify", response_model=TokenResponse)
+def verify(payload: VerifyEmailRequest, response: Response, db: DbSession) -> TokenResponse:
+    user = UserService.verify(db, payload)
+    
+    # Iniciar sesión automáticamente (HTTP concern)
     token = create_access_token(subject=str(user.id))
     response.set_cookie("rs_session", token, httponly=True, samesite="lax")
     return TokenResponse(access_token=token, user=UserPublic.model_validate(user))
+
+
+@router.post("/resend-code")
+def resend_code(
+    payload: ResendCodeRequest,
+    background_tasks: BackgroundTasks,
+    db: DbSession,
+) -> dict:
+    user = UserService.resend_code(db, payload, background_tasks)
+    return {"status": "code_resent", "email": user.email}
+
+
 
 
 @router.post("/login", response_model=TokenResponse)

@@ -5,7 +5,7 @@ export const metadata: Metadata = {
   title: "RutaSegura",
   description: "Mapa colaborativo de seguridad urbana.",
   icons: {
-    icon: "/favicon.svg",
+    icon: "/favicon.png",
   },
 };
 

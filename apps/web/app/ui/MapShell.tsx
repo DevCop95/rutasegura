@@ -16,6 +16,9 @@ type MapShellProps = {
   showRoute: boolean;
   routeCoordinates?: [number, number][];
   onSelectReport: (id: string) => void;
+  center?: [number, number];
+  bounds?: [[number, number], [number, number]];
+  onLocateUser?: (coords: { longitude: number; latitude: number }) => void;
 };
 
 export default function MapShell(props: MapShellProps) {
