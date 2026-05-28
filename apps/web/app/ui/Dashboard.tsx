@@ -670,8 +670,9 @@ const CITIES_CONFIG: Record<string, CityConfig> = {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8001";
 
-function generateDemoReports(cityKey: string): ReportItem[] {
-  const config = CITIES_CONFIG[cityKey] || CITIES_CONFIG["Cartagena"];
+function generateDemoReports(cityKey: string, citiesObj: Record<string, CityConfig> = CITIES_CONFIG): ReportItem[] {
+  const config = citiesObj[cityKey] || citiesObj["Cartagena"];
+  if (!config.seeds || config.seeds.length === 0) return [];
   return Array.from({ length: 25 }, (_, i) => {
     const seed = config.seeds[i % config.seeds.length];
     // Perturbación muy pequeña (máx ~150 metros) para garantizar caer en tierra firme
@@ -698,8 +699,9 @@ function generateDemoReports(cityKey: string): ReportItem[] {
   });
 }
 
-function generateDemoBusinesses(cityKey: string): BusinessItem[] {
-  const config = CITIES_CONFIG[cityKey] || CITIES_CONFIG["Cartagena"];
+function generateDemoBusinesses(cityKey: string, citiesObj: Record<string, CityConfig> = CITIES_CONFIG): BusinessItem[] {
+  const config = citiesObj[cityKey] || citiesObj["Cartagena"];
+  if (!config.demoBusinesses || config.demoBusinesses.length === 0) return [];
   return config.demoBusinesses.map((b, i) => ({
     id: `demo-b-${cityKey}-${i}`,
     name: b.name,
@@ -886,10 +888,10 @@ function hostFromUrl(url: string) {
   }
 }
 
-function getDefaultRouteCoords(cityKey: string): { from: [number, number]; to: [number, number] } {
-  const config = CITIES_CONFIG[cityKey] || CITIES_CONFIG["Cartagena"];
-  let from: [number, number] = [-75.5488, 10.4262];
-  let to: [number, number] = [-75.5362, 10.4109];
+function getDefaultRouteCoords(cityKey: string, citiesObj: Record<string, CityConfig> = CITIES_CONFIG): { from: [number, number]; to: [number, number] } {
+  const config = citiesObj[cityKey] || citiesObj["Cartagena"];
+  let from: [number, number] = [config.center[0] - 0.01, config.center[1] - 0.01];
+  let to: [number, number] = [config.center[0] + 0.01, config.center[1] + 0.01];
   if (config.demoBusinesses && config.demoBusinesses.length > 1) {
     from = [config.demoBusinesses[0].lng, config.demoBusinesses[0].lat];
     to = [config.demoBusinesses[1].lng, config.demoBusinesses[1].lat];
@@ -903,6 +905,8 @@ function getDefaultRouteCoords(cityKey: string): { from: [number, number]; to: [
 export default function Dashboard() {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<UserPublic | null>(null);
+  const [dynamicCities, setDynamicCities] = useState<Record<string, CityConfig>>({});
+  const cities = useMemo(() => ({ ...CITIES_CONFIG, ...dynamicCities }), [dynamicCities]);
   const [reports, setReports] = useState<ReportItem[]>(() => generateDemoReports("Cartagena"));
   const [businesses, setBusinesses] = useState<BusinessItem[]>(() => generateDemoBusinesses("Cartagena"));
   const [userVotes, setUserVotes] = useState<Record<string, "SI" | "NO" | "NO_SE">>({});
@@ -1116,12 +1120,12 @@ export default function Dashboard() {
     try {
       const apiBusinesses = await api<Array<Record<string, unknown>>>("/api/v1/businesses");
       const mapped = apiBusinesses.map(mapApiBusiness);
-      const config = CITIES_CONFIG[cityKey] || CITIES_CONFIG["Cartagena"];
+      const config = cities[cityKey] || cities["Cartagena"];
       const filteredMapped = mapped.filter(b => {
         const [[west, south], [east, north]] = config.bounds;
         return b.lng >= west && b.lng <= east && b.lat >= south && b.lat <= north;
       });
-      setBusinesses((current) => mergeById(generateDemoBusinesses(cityKey), filteredMapped, current.filter((item) => item.apiBacked)));
+      setBusinesses((current) => mergeById(generateDemoBusinesses(cityKey, cities), filteredMapped, current.filter((item) => item.apiBacked)));
     } catch {
       // API no disponible (CORS, timeout, servidor caído) — usar datos demo silenciosamente
     }
@@ -1131,8 +1135,8 @@ export default function Dashboard() {
     setUserCoords({ lat: coords.latitude, lng: coords.longitude });
 
     // Buscar si las coordenadas corresponden a alguna de las ciudades configuradas
-    const matchedCityKey = Object.keys(CITIES_CONFIG).find((cityKey) => {
-      const config = CITIES_CONFIG[cityKey];
+    const matchedCityKey = Object.keys(cities).find((cityKey) => {
+      const config = cities[cityKey];
       const [[west, south], [east, north]] = config.bounds;
       return coords.longitude >= west && coords.longitude <= east && coords.latitude >= south && coords.latitude <= north;
     });
@@ -1147,14 +1151,34 @@ export default function Dashboard() {
       fetch(`https://nominatim.openstreetmap.org/reverse?lat=${coords.latitude}&lon=${coords.longitude}&format=json&accept-language=es`)
         .then((res) => res.json())
         .then((data) => {
-          const city = data.address?.city || data.address?.town || data.address?.village;
-          if (city) {
-            const matched = Object.keys(CITIES_CONFIG).find(
-              c => c.toLowerCase() === city.toLowerCase() || city.toLowerCase().includes(c.toLowerCase())
+          const cityName = data.address?.city || data.address?.town || data.address?.village || data.address?.state;
+          if (cityName) {
+            const matched = Object.keys(cities).find(
+              c => c.toLowerCase() === cityName.toLowerCase() || cityName.toLowerCase().includes(c.toLowerCase())
             );
-            if (matched && matched !== currentCity) {
-              void handleCityChange(matched);
-              setToast(`Ciudad detectada: Cambiando a ${matched}.`);
+            if (matched) {
+              if (matched !== currentCity) {
+                void handleCityChange(matched);
+                setToast(`Ciudad detectada: Cambiando a ${matched}.`);
+              }
+            } else {
+              // Generar un entorno dinámico para esta nueva ciudad/entorno
+              const newCityKey = cityName;
+              const newCityConfig: CityConfig = {
+                name: newCityKey,
+                center: [coords.longitude, coords.latitude],
+                bounds: [
+                  [coords.longitude - 0.15, coords.latitude - 0.15],
+                  [coords.longitude + 0.15, coords.latitude + 0.15],
+                ],
+                seeds: [],
+                demoBusinesses: []
+              };
+              setDynamicCities(prev => ({ ...prev, [newCityKey]: newCityConfig }));
+              setToast(`¡Nueva ubicación detectada! Entorno generado para ${newCityKey}.`);
+              setTimeout(() => {
+                void handleCityChange(newCityKey);
+              }, 100);
             }
           }
         })
@@ -1172,14 +1196,14 @@ export default function Dashboard() {
     setRouteToCoords(null);
 
     if (showRoute) {
-      const defaults = getDefaultRouteCoords(newCity);
+      const defaults = getDefaultRouteCoords(newCity, cities);
       void fetchRoute(defaults.from, defaults.to);
     } else {
       setRouteCoordinates([]);
     }
 
-    const newDemoReports = generateDemoReports(newCity);
-    const newDemoBusinesses = generateDemoBusinesses(newCity);
+    const newDemoReports = generateDemoReports(newCity, cities);
+    const newDemoBusinesses = generateDemoBusinesses(newCity, cities);
     setReports(newDemoReports);
     setBusinesses(newDemoBusinesses);
 
@@ -1194,7 +1218,7 @@ export default function Dashboard() {
     try {
       const apiBusinesses = await api<Array<Record<string, unknown>>>("/api/v1/businesses");
       const mapped = apiBusinesses.map(mapApiBusiness);
-      const config = CITIES_CONFIG[newCity] || CITIES_CONFIG["Cartagena"];
+      const config = cities[newCity] || cities["Cartagena"];
       const filteredMapped = mapped.filter(b => {
         const [[west, south], [east, north]] = config.bounds;
         return b.lng >= west && b.lng <= east && b.lat >= south && b.lat <= north;
@@ -1363,7 +1387,7 @@ export default function Dashboard() {
     }
 
     // Validar límites de la ciudad piloto activa (para evitar registrar fuera de la zona piloto o en el agua)
-    const config = CITIES_CONFIG[currentCity] || CITIES_CONFIG["Cartagena"];
+    const config = cities[currentCity] || cities["Cartagena"];
     const [[west, south], [east, north]] = config.bounds;
 
     if (lat < south || lat > north || lng < west || lng > east) {
@@ -1738,17 +1762,30 @@ export default function Dashboard() {
         fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&accept-language=es`)
           .then((res) => res.json())
           .then((data) => {
-            const city = data.address?.city || data.address?.town || data.address?.village || "Cartagena";
-            const matchedCity = Object.keys(CITIES_CONFIG).find(
-              c => c.toLowerCase() === city.toLowerCase() || city.toLowerCase().includes(c.toLowerCase())
-            );
-            if (matchedCity) {
-              handleCityChange(matchedCity);
-              setToast(`Ubicación detectada: Cambiando a ${matchedCity}.`);
-            } else {
-              setCurrentCity(city);
-              if (longitude >= -75.7 && longitude <= -75.3 && latitude >= 10.2 && latitude <= 10.6) {
-                setToast("Ubicación detectada: Centrando mapa en tu zona.");
+            const city = data.address?.city || data.address?.town || data.address?.village || data.address?.state;
+            if (city) {
+              const matchedCity = Object.keys(cities).find(
+                c => c.toLowerCase() === city.toLowerCase() || city.toLowerCase().includes(c.toLowerCase())
+              );
+              if (matchedCity) {
+                handleCityChange(matchedCity);
+                setToast(`Ubicación detectada: Cambiando a ${matchedCity}.`);
+              } else {
+                const newCityConfig: CityConfig = {
+                  name: city,
+                  center: [longitude, latitude],
+                  bounds: [
+                    [longitude - 0.15, latitude - 0.15],
+                    [longitude + 0.15, latitude + 0.15],
+                  ],
+                  seeds: [],
+                  demoBusinesses: []
+                };
+                setDynamicCities(prev => ({ ...prev, [city]: newCityConfig }));
+                setToast(`¡Nueva ubicación detectada! Entorno generado para ${city}.`);
+                setTimeout(() => {
+                  void handleCityChange(city);
+                }, 100);
               }
             }
           })
@@ -1870,7 +1907,7 @@ export default function Dashboard() {
                 onChange={(e) => handleCityChange(e.target.value)} 
                 className="bg-transparent border-none outline-none text-xs font-bold text-on-surface cursor-pointer pr-1 py-0.5 focus:ring-0 focus:outline-none"
               >
-                {Object.keys(CITIES_CONFIG).map((city) => (
+                {Object.keys(cities).map((city) => (
                   <option key={city} value={city} className="bg-surface font-semibold text-on-surface">
                     {city}
                   </option>
@@ -1932,8 +1969,8 @@ export default function Dashboard() {
                 showRoute={showRoute}
                 routeCoordinates={routeCoordinates}
                 onSelectReport={(id) => setToast(reports.find((r) => r.id === id)?.title ?? "Reporte seleccionado")}
-                center={CITIES_CONFIG[currentCity]?.center}
-                bounds={CITIES_CONFIG[currentCity]?.bounds}
+                center={cities[currentCity]?.center}
+                bounds={cities[currentCity]?.bounds}
                 onLocateUser={handleUserLocated}
               />
             </div>
@@ -2140,8 +2177,8 @@ export default function Dashboard() {
         <BusinessFormModal
           onClose={() => setShowBusinessForm(false)}
           createBusiness={createBusiness}
-          defaultLat={CITIES_CONFIG[currentCity]?.center[1]}
-          defaultLng={CITIES_CONFIG[currentCity]?.center[0]}
+          defaultLat={cities[currentCity]?.center[1]}
+          defaultLng={cities[currentCity]?.center[0]}
         />
       )}
 
