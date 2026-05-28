@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     smtp_password: str | None = None
     smtp_from: str = "noreply@rutasegura.com"
 
+    resend_api_key: str | None = None
+    resend_from: str = "onboarding@resend.dev"
+
 
 settings = Settings()
 
