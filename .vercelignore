@@ -1,0 +1,10 @@
+# Ignore python virtual environments and cache directories
+.venv
+.pytest_cache
+__pycache__
+*.db
+*.sqlite
+apps/api/.pytest_cache
+apps/api/.venv
+apps/api/rutasegura.db
+apps/api/__pycache__
