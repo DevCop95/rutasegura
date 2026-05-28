@@ -995,7 +995,7 @@ export default function Dashboard() {
     }
   }
 
-  const [toast, setToastRaw] = useState("Listo para registrar usuarios y crear datos reales en SQLite.");
+  const [toast, setToastRaw] = useState("");
   const [toastKey, setToastKey] = useState(0);
   const [darkMode, setDarkMode] = useState(false);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
