@@ -6,11 +6,19 @@ from sqlalchemy import select
 
 from app.api.deps import AdminUser, DbSession
 from app.models.business import Business
-from app.models.enums import BusinessStatus, ReportStatus
+from app.models.enums import BusinessStatus, ReportStatus, ReportType, SourceStatus
 from app.models.report import Report
-from app.schemas.admin import HideReportRequest, MarkDuplicateRequest, RejectBusinessRequest
+from app.models.source import ReportSource
+from app.schemas.admin import (
+    AcceptSourceRequest,
+    HideReportRequest,
+    MarkDuplicateRequest,
+    RejectBusinessRequest,
+    RejectSourceRequest,
+)
 from app.schemas.business import BusinessPublic
 from app.schemas.report import ReportPublic
+from app.schemas.source import ReportSourcePublic
 
 router = APIRouter()
 
@@ -139,3 +147,56 @@ def reject_business(
     db.commit()
     db.refresh(business)
     return BusinessPublic.model_validate(business)
+
+
+@router.post("/sources/{source_id}/accept", response_model=ReportSourcePublic)
+def accept_source(
+    source_id: UUID,
+    payload: AcceptSourceRequest,
+    admin: AdminUser,
+    db: DbSession,
+) -> ReportSourcePublic:
+    source = db.get(ReportSource, str(source_id))
+    if source is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Fuente no encontrada.")
+    if source.status != SourceStatus.PENDIENTE:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Esta fuente ya fue revisada.")
+
+    now = datetime.now(timezone.utc)
+    source.status = SourceStatus.ACEPTADO
+    source.reviewed_at = now
+    source.review_notes = payload.review_notes
+    db.add(source)
+
+    report = db.get(Report, source.report_id)
+    if report is not None:
+        report.status = ReportStatus.VERIFICADO
+        report.report_type = ReportType.OFICIAL
+        report.verified_at = now
+        db.add(report)
+
+    db.commit()
+    db.refresh(source)
+    return ReportSourcePublic.model_validate(source)
+
+
+@router.post("/sources/{source_id}/reject", response_model=ReportSourcePublic)
+def reject_source(
+    source_id: UUID,
+    payload: RejectSourceRequest,
+    admin: AdminUser,
+    db: DbSession,
+) -> ReportSourcePublic:
+    source = db.get(ReportSource, str(source_id))
+    if source is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Fuente no encontrada.")
+    if source.status != SourceStatus.PENDIENTE:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Esta fuente ya fue revisada.")
+
+    source.status = SourceStatus.RECHAZADO
+    source.reviewed_at = datetime.now(timezone.utc)
+    source.review_notes = payload.reason
+    db.add(source)
+    db.commit()
+    db.refresh(source)
+    return ReportSourcePublic.model_validate(source)

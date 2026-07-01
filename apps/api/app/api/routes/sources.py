@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
 
-from app.api.deps import AdminUser, DbSession
+from app.api.deps import CurrentUser, DbSession
 from app.models.report import Report
 from app.models.source import ReportSource
 from app.schemas.source import ReportSourceCreate, ReportSourcePublic
@@ -20,7 +20,7 @@ router = APIRouter()
 def submit_report_source(
     report_id: UUID,
     payload: ReportSourceCreate,
-    admin: AdminUser,
+    current_user: CurrentUser,
     db: DbSession,
 ) -> ReportSourcePublic:
     report = db.get(Report, str(report_id))
@@ -39,7 +39,7 @@ def submit_report_source(
     parsed = urlparse(payload.url)
     source = ReportSource(
         report_id=str(report_id),
-        submitted_by_user_id=admin.id,
+        submitted_by_user_id=current_user.id,
         url=payload.url,
         source_domain=parsed.netloc.lower() or None,
     )

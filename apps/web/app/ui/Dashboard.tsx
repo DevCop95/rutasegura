@@ -41,6 +41,7 @@ import MapShell from "./MapShell";
 import AuthModal from "./AuthModal";
 import ReportFormModal from "./ReportFormModal";
 import BusinessFormModal from "./BusinessFormModal";
+import ReportSourcesModal, { type ReportSourceItem } from "./ReportSourcesModal";
 import * as turf from "@turf/turf";
 
 // Configuración de Ciudades de Colombia (Centros, límites geográficos y semillas terrestres de alta delincuencia)
@@ -746,7 +747,6 @@ function generateDemoReports(cityKey: string, citiesObj: Record<string, CityConf
       author: "User",
       authorRank: "Ciudadano",
       children: 0,
-      source: { status: "PENDIENTE", label: "demo", media: "demo" },
       votes: { yes: 0, no: 0, unknown: 0 },
       lat: lat,
       lng: lng,
@@ -827,7 +827,6 @@ type ReportItem = {
   author: string;
   authorRank: string;
   children: number;
-  source: { status: string; label: string; media: string };
   votes: { yes: number; no: number; unknown: number };
   lat: number;
   lng: number;
@@ -908,7 +907,6 @@ function mapApiReport(report: Record<string, unknown>): ReportItem {
     author: "Usuario",
     authorRank: "Ciudadano",
     children: Number(report.duplicate_group_count ?? 0),
-    source: { status: "PENDIENTE", label: "sin fuente aceptada", media: "pendiente" },
     votes: {
       yes: Number(report.community_yes_count ?? 0),
       no: Number(report.community_no_count ?? 0),
@@ -934,14 +932,6 @@ function mapApiBusiness(business: Record<string, unknown>): BusinessItem {
     lng: Number(business.lng),
     apiBacked: true,
   };
-}
-
-function hostFromUrl(url: string) {
-  try {
-    return new URL(url).host;
-  } catch {
-    return "fuente externa";
-  }
 }
 
 function getDefaultRouteCoords(cityKey: string, citiesObj: Record<string, CityConfig> = CITIES_CONFIG): { from: [number, number]; to: [number, number] } {
@@ -982,6 +972,9 @@ export default function Dashboard() {
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
   const [isSubmittingBusiness, setIsSubmittingBusiness] = useState(false);
   const [isSubmittingAuth, setIsSubmittingAuth] = useState(false);
+  const [isSubmittingSource, setIsSubmittingSource] = useState(false);
+  const [reportSources, setReportSources] = useState<ReportSourceItem[]>([]);
+  const [loadingSources, setLoadingSources] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showWomensModeConfirm, setShowWomensModeConfirm] = useState(false);
   const [showVoteForm, setShowVoteForm] = useState<{ id: string; type: "report" | "business"; vote: "SI" | "NO" | "NO_SE" } | null>(null);
@@ -1512,39 +1505,83 @@ export default function Dashboard() {
     }
   }
 
+  async function loadReportSources(reportId: string) {
+    if (reportId.startsWith("demo-")) {
+      setReportSources([]);
+      return;
+    }
+    setLoadingSources(true);
+    try {
+      const sources = await api<ReportSourceItem[]>(`/api/v1/reports/${reportId}/sources`);
+      setReportSources(sources);
+    } catch {
+      setReportSources([]);
+    } finally {
+      setLoadingSources(false);
+    }
+  }
+
+  function openReportDetail(reportId: string) {
+    setSourceReportId(reportId);
+    void loadReportSources(reportId);
+  }
+
   async function submitSource(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!sourceReportId) return;
-    if (!isAdmin) {
-      setSourceReportId(null);
-      setToast("Solo un usuario admin puede aportar o gestionar noticias.");
-      return;
-    }
     if (!token) {
       setAuthMode("register");
-      setToast("Necesitas sesion para aportar una noticia.");
+      setToast("Necesitas sesion para aportar una fuente.");
       return;
     }
     const form = new FormData(event.currentTarget);
     const url = String(form.get("url") ?? "");
+    setIsSubmittingSource(true);
     try {
       if (!sourceReportId.startsWith("demo-")) {
         await api(`/api/v1/reports/${sourceReportId}/sources`, {
           method: "POST",
           body: JSON.stringify({ url }),
         });
+        await loadReportSources(sourceReportId);
       }
+      event.currentTarget.reset();
+      setToast("Fuente enviada. Queda en revision por un admin.");
+    } catch (error) {
+      setToast(error instanceof Error ? error.message : "No se pudo enviar la fuente.");
+    } finally {
+      setIsSubmittingSource(false);
+    }
+  }
+
+  async function acceptSource(sourceId: string) {
+    if (!sourceReportId) return;
+    try {
+      await api(`/api/v1/admin/sources/${sourceId}/accept`, { method: "POST", body: JSON.stringify({}) });
+      await loadReportSources(sourceReportId);
+      const reportId = sourceReportId;
       setReports((current) =>
         current.map((report) =>
-          report.id === sourceReportId
-            ? { ...report, source: { status: "PENDIENTE", label: "en revision", media: hostFromUrl(url) } }
-            : report,
+          report.id === reportId ? { ...report, status: "VERIFICADO", type: "OFICIAL" } : report,
         ),
       );
-      setSourceReportId(null);
-      setToast("Noticia enviada. Quedo en revision.");
+      setToast("Fuente aceptada. El reporte quedo verificado.");
     } catch (error) {
-      setToast(error instanceof Error ? error.message : "No se pudo enviar la noticia.");
+      setToast(error instanceof Error ? error.message : "No se pudo aceptar la fuente.");
+    }
+  }
+
+  async function rejectSource(sourceId: string, reason: string) {
+    if (!sourceReportId) return;
+    try {
+      await api(`/api/v1/admin/sources/${sourceId}/reject`, {
+        method: "POST",
+        body: JSON.stringify({ reason }),
+      });
+      await loadReportSources(sourceReportId);
+      setToast("Fuente rechazada.");
+    } catch (error) {
+      setToast(error instanceof Error ? error.message : "No se pudo rechazar la fuente.");
     }
   }
 
@@ -2060,7 +2097,7 @@ export default function Dashboard() {
                 showBusinesses={showBusinesses}
                 showRoute={showRoute}
                 routeCoordinates={routeCoordinates}
-                onSelectReport={(id) => setToast(reports.find((r) => r.id === id)?.title ?? "Reporte seleccionado")}
+                onSelectReport={(id) => openReportDetail(id)}
                 center={cities[currentCity]?.center}
                 bounds={cities[currentCity]?.bounds}
                 onLocateUser={handleUserLocated}
@@ -2231,7 +2268,10 @@ export default function Dashboard() {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <button className="p-2 hover:bg-surface-container-high rounded-lg transition-colors text-outline">
+                        <button
+                          onClick={() => openReportDetail(report.id)}
+                          className="p-2 hover:bg-surface-container-high rounded-lg transition-colors text-outline"
+                        >
                           <ChevronRight size={18} />
                         </button>
                       </td>
@@ -2301,6 +2341,25 @@ export default function Dashboard() {
           isSubmitting={isSubmittingBusiness}
         />
       )}
+
+      {sourceReportId && (() => {
+        const selectedReport = reports.find((r) => r.id === sourceReportId);
+        if (!selectedReport) return null;
+        return (
+          <ReportSourcesModal
+            report={selectedReport}
+            sources={reportSources}
+            loadingSources={loadingSources}
+            isLoggedIn={!!token}
+            isAdmin={isAdmin}
+            isSubmitting={isSubmittingSource}
+            onClose={() => { setSourceReportId(null); setReportSources([]); }}
+            onSubmitSource={submitSource}
+            onAcceptSource={acceptSource}
+            onRejectSource={rejectSource}
+          />
+        );
+      })()}
 
       {showAccountModal && (
         <NewModal title="Perfil de Usuario" onClose={() => setShowAccountModal(false)}>
