@@ -1092,8 +1092,14 @@ export default function Dashboard() {
     localStorage.setItem("rs_dark_mode", String(darkMode));
   }, [darkMode]);
 
+  // Los reportes demo (semillas de ejemplo) solo se muestran como respaldo
+  // ilustrativo cuando todavia no hay datos reales del backend para esta
+  // ciudad, para no mezclar incidentes falsos con reportes reales.
+  const hasRealReports = useMemo(() => reports.some((report) => report.apiBacked), [reports]);
+
   const filteredReports = useMemo(() => {
     return reports.filter((report) => {
+      if (hasRealReports && !report.apiBacked) return false;
       if (showWomensMode && !report.isWomensModeRelevant) return false;
       const categoryOk = categoryFilter === "todas" || report.category.toLowerCase().includes(categoryFilter);
       const verificationOk =
@@ -1111,7 +1117,14 @@ export default function Dashboard() {
 
       return categoryOk && verificationOk && matchesSearch;
     });
-  }, [reports, categoryFilter, verificationFilter, showWomensMode, searchQuery]);
+  }, [reports, hasRealReports, categoryFilter, verificationFilter, showWomensMode, searchQuery]);
+
+  // Mismo criterio para negocios: ocultar los de ejemplo apenas exista al
+  // menos uno real proveniente de la API.
+  const visibleBusinesses = useMemo(() => {
+    const hasRealBusinesses = businesses.some((business) => business.apiBacked);
+    return hasRealBusinesses ? businesses.filter((business) => business.apiBacked) : businesses;
+  }, [businesses]);
 
   const profile = user
     ? {
@@ -2027,7 +2040,7 @@ export default function Dashboard() {
           {/* Hero Grid: Stats & Map */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
             <StatCard icon={<Newspaper size={18} className="sm:w-5 sm:h-5" />} label="Alertas" value={filteredReports.length} color="bg-error/10 text-error" />
-            <StatCard icon={<ShieldCheck size={18} className="sm:w-5 sm:h-5" />} label="Puntos" value={businesses.length} color="bg-secondary/10 text-secondary" />
+            <StatCard icon={<ShieldCheck size={18} className="sm:w-5 sm:h-5" />} label="Puntos" value={visibleBusinesses.length} color="bg-secondary/10 text-secondary" />
             <StatCard icon={<Users size={18} className="sm:w-5 sm:h-5" />} label="Reputación" value={profile.reputation} color="bg-primary/10 text-primary" />
             <StatCard icon={<Clock3 size={18} className="sm:w-5 sm:h-5" />} label="Ruta" value={showRoute ? "Activa" : "Desviada"} color="bg-on-tertiary-container/10 text-on-tertiary-container" />
             
@@ -2042,7 +2055,7 @@ export default function Dashboard() {
               </div>
               <MapShell
                 reports={filteredReports}
-                businesses={businesses}
+                businesses={visibleBusinesses}
                 showReports={showReports}
                 showBusinesses={showBusinesses}
                 showRoute={showRoute}
@@ -2175,7 +2188,7 @@ export default function Dashboard() {
                         No hay reportes que coincidan con los filtros actuales.
                       </td>
                     </tr>
-                  ) : activeTab === "business" && businesses.length === 0 ? (
+                  ) : activeTab === "business" && visibleBusinesses.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="px-6 py-10 text-center text-sm text-outline">
                         Todavía no hay puntos seguros registrados en esta ciudad.
@@ -2186,7 +2199,12 @@ export default function Dashboard() {
                     <tr key={report.id} className="hover:bg-surface-container-low transition-colors group">
                       <td className="px-6 py-4">
                         <div className="flex flex-col">
-                          <span className="text-[10px] font-bold text-primary opacity-60 uppercase tracking-tighter">#{report.id.slice(-4)}</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-bold text-primary opacity-60 uppercase tracking-tighter">#{report.id.slice(-4)}</span>
+                            {!report.apiBacked && (
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-outline/15 text-outline">Demo</span>
+                            )}
+                          </div>
                           <span className="font-bold text-on-surface group-hover:text-primary transition-colors">{report.title}</span>
                           <span className="text-xs text-outline line-clamp-1">{report.description}</span>
                         </div>
@@ -2218,9 +2236,16 @@ export default function Dashboard() {
                         </button>
                       </td>
                     </tr>
-                  )) : businesses.map((business) => (
+                  )) : visibleBusinesses.map((business) => (
                     <tr key={business.id} className="hover:bg-surface-container-low transition-colors group">
-                      <td className="px-6 py-4 font-bold text-on-surface">{business.name}</td>
+                      <td className="px-6 py-4 font-bold text-on-surface">
+                        <div className="flex items-center gap-1.5">
+                          {business.name}
+                          {!business.apiBacked && (
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-outline/15 text-outline">Demo</span>
+                          )}
+                        </div>
+                      </td>
                       <td className="px-6 py-4 text-outline">{business.category} · {business.zone}</td>
                       <td className="px-6 py-4">
                         <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${business.status === "APROBADO" ? "bg-secondary/10 text-secondary" : "bg-error/10 text-error"}`}>

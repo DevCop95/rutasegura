@@ -24,6 +24,7 @@ export type MapReport = {
   lng: number;
   zone?: string;
   time?: string;
+  apiBacked?: boolean;
 };
 
 export type MapBusiness = {
@@ -34,6 +35,7 @@ export type MapBusiness = {
   lat: number;
   lng: number;
   zone?: string;
+  apiBacked?: boolean;
 };
 
 type MapPanelProps = {
@@ -107,7 +109,9 @@ export default function MapPanel({
               onClick={() => onSelectReport(report.id)}
             >
               <MarkerContent>
-                <span className={`flex items-center justify-center w-8 h-8 rounded-full border-2 border-white shadow-lg transition-transform hover:scale-110 ${
+                <span className={`flex items-center justify-center w-8 h-8 rounded-full shadow-lg transition-transform hover:scale-110 ${
+                  report.apiBacked !== true ? "border-2 border-dashed border-white/80 opacity-75" : "border-2 border-white"
+                } ${
                   report.status === "VERIFICADO" ? "bg-secondary text-white" : "bg-error text-white"
                 }`}>
                   <ShieldAlert size={16} />
@@ -115,12 +119,17 @@ export default function MapPanel({
               </MarkerContent>
               <MarkerTooltip>
                 <div className="bg-primary text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-xl whitespace-nowrap">
-                  {report.title}
+                  {report.title}{report.apiBacked !== true ? " (Demo)" : ""}
                 </div>
               </MarkerTooltip>
               <MarkerPopup>
                 <div className="bg-surface p-3 rounded-xl shadow-2xl border border-outline-variant min-w-[180px]">
-                  <strong className="block text-sm font-headline font-bold text-on-surface leading-tight mb-1">{report.title}</strong>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <strong className="block text-sm font-headline font-bold text-on-surface leading-tight">{report.title}</strong>
+                    {report.apiBacked !== true && (
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-outline/15 text-outline shrink-0">Demo</span>
+                    )}
+                  </div>
                   <span className="block text-xs text-outline mb-1">{report.category}</span>
                   {(report.zone || report.time) && (
                     <span className="block text-[11px] text-outline/80 mb-2">
@@ -142,7 +151,9 @@ export default function MapPanel({
         ? businesses.map((business) => (
             <MapMarker key={business.id} longitude={business.lng} latitude={business.lat}>
               <MarkerContent>
-                <span className={`flex items-center justify-center w-8 h-8 rounded-full border-2 border-white shadow-lg transition-transform hover:scale-110 ${
+                <span className={`flex items-center justify-center w-8 h-8 rounded-full shadow-lg transition-transform hover:scale-110 ${
+                  business.apiBacked !== true ? "border-2 border-dashed border-white/80 opacity-75" : "border-2 border-white"
+                } ${
                   business.status === "APROBADO" ? "bg-primary text-white" : "bg-outline text-white"
                 }`}>
                   <Building2 size={16} />
@@ -150,12 +161,17 @@ export default function MapPanel({
               </MarkerContent>
               <MarkerTooltip>
                 <div className="bg-primary text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-xl whitespace-nowrap">
-                  {business.name}
+                  {business.name}{business.apiBacked !== true ? " (Demo)" : ""}
                 </div>
               </MarkerTooltip>
               <MarkerPopup>
                 <div className="bg-surface p-3 rounded-xl shadow-2xl border border-outline-variant min-w-[180px]">
-                  <strong className="block text-sm font-headline font-bold text-on-surface leading-tight mb-1">{business.name}</strong>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <strong className="block text-sm font-headline font-bold text-on-surface leading-tight">{business.name}</strong>
+                    {business.apiBacked !== true && (
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-outline/15 text-outline shrink-0">Demo</span>
+                    )}
+                  </div>
                   <span className="block text-xs text-outline mb-1">{business.category}</span>
                   {business.zone && (
                     <span className="block text-[11px] text-outline/80 mb-2">{business.zone}</span>
