@@ -46,6 +46,7 @@ import * as turf from "@turf/turf";
 // Configuración de Ciudades de Colombia (Centros, límites geográficos y semillas terrestres de alta delincuencia)
 type CityConfig = {
   name: string;
+  country: string;
   center: [number, number];
   bounds: [[number, number], [number, number]];
   seeds: { name: string; lat: number; lng: number }[];
@@ -55,6 +56,7 @@ type CityConfig = {
 const CITIES_CONFIG: Record<string, CityConfig> = {
   Cartagena: {
     name: "Cartagena",
+    country: "Colombia",
     center: [-75.535, 10.405],
     bounds: [
       [-75.59, 10.34],
@@ -94,6 +96,7 @@ const CITIES_CONFIG: Record<string, CityConfig> = {
   },
   Bogotá: {
     name: "Bogotá",
+    country: "Colombia",
     center: [-74.0721, 4.6097],
     bounds: [
       [-74.25, 4.45],
@@ -127,6 +130,7 @@ const CITIES_CONFIG: Record<string, CityConfig> = {
   },
   Medellín: {
     name: "Medellín",
+    country: "Colombia",
     center: [-75.5670, 6.2518],
     bounds: [
       [-75.68, 6.13],
@@ -157,6 +161,7 @@ const CITIES_CONFIG: Record<string, CityConfig> = {
   },
   Cali: {
     name: "Cali",
+    country: "Colombia",
     center: [-76.5225, 3.4372],
     bounds: [
       [-76.60, 3.32],
@@ -185,6 +190,7 @@ const CITIES_CONFIG: Record<string, CityConfig> = {
   },
   Barranquilla: {
     name: "Barranquilla",
+    country: "Colombia",
     center: [-74.8050, 10.9850],
     bounds: [
       [-74.88, 10.90],
@@ -212,6 +218,7 @@ const CITIES_CONFIG: Record<string, CityConfig> = {
   },
   Madrid: {
     name: "Madrid",
+    country: "España",
     center: [-3.70379, 40.41678],
     bounds: [
       [-3.85, 40.3],
@@ -231,6 +238,7 @@ const CITIES_CONFIG: Record<string, CityConfig> = {
   },
   Barcelona: {
     name: "Barcelona",
+    country: "España",
     center: [2.1734, 41.3851],
     bounds: [
       [2.05, 41.3],
@@ -250,6 +258,7 @@ const CITIES_CONFIG: Record<string, CityConfig> = {
   },
   "Buenos Aires": {
     name: "Buenos Aires",
+    country: "Argentina",
     center: [-58.3816, -34.6037],
     bounds: [
       [-58.55, -34.7],
@@ -269,6 +278,7 @@ const CITIES_CONFIG: Record<string, CityConfig> = {
   },
   Santiago: {
     name: "Santiago",
+    country: "Chile",
     center: [-70.6483, -33.4489],
     bounds: [
       [-70.8, -33.6],
@@ -288,6 +298,7 @@ const CITIES_CONFIG: Record<string, CityConfig> = {
   },
   Lima: {
     name: "Lima",
+    country: "Perú",
     center: [-77.0428, -12.0464],
     bounds: [
       [-77.2, -12.2],
@@ -307,6 +318,7 @@ const CITIES_CONFIG: Record<string, CityConfig> = {
   },
   Quito: {
     name: "Quito",
+    country: "Ecuador",
     center: [-78.4678, -0.1807],
     bounds: [
       [-78.6, -0.3],
@@ -326,6 +338,7 @@ const CITIES_CONFIG: Record<string, CityConfig> = {
   },
   Caracas: {
     name: "Caracas",
+    country: "Venezuela",
     center: [-66.9036, 10.4806],
     bounds: [
       [-67.05, 10.4],
@@ -345,6 +358,7 @@ const CITIES_CONFIG: Record<string, CityConfig> = {
   },
   Montevideo: {
     name: "Montevideo",
+    country: "Uruguay",
     center: [-56.1645, -34.9011],
     bounds: [
       [-56.3, -35.0],
@@ -364,6 +378,7 @@ const CITIES_CONFIG: Record<string, CityConfig> = {
   },
   Asuncion: {
     name: "Asunción",
+    country: "Paraguay",
     center: [-57.5759, -25.2637],
     bounds: [
       [-57.7, -25.35],
@@ -383,6 +398,7 @@ const CITIES_CONFIG: Record<string, CityConfig> = {
   },
   "La Paz": {
     name: "La Paz",
+    country: "Bolivia",
     center: [-68.1193, -16.4897],
     bounds: [
       [-68.2, -16.55],
@@ -402,6 +418,7 @@ const CITIES_CONFIG: Record<string, CityConfig> = {
   },
   "Rio de Janeiro": {
     name: "Rio de Janeiro",
+    country: "Brasil",
     center: [-43.1729, -22.9068],
     bounds: [
       [-43.4, -23.05],
@@ -421,6 +438,7 @@ const CITIES_CONFIG: Record<string, CityConfig> = {
   },
   "São Paulo": {
     name: "São Paulo",
+    country: "Brasil",
     center: [-46.6333, -23.5505],
     bounds: [
       [-46.85, -23.7],
@@ -440,6 +458,7 @@ const CITIES_CONFIG: Record<string, CityConfig> = {
   },
   Georgetown: {
     name: "Georgetown",
+    country: "Guyana",
     center: [-58.1551, 6.8013],
     bounds: [
       [-58.2, 6.75],
@@ -459,6 +478,7 @@ const CITIES_CONFIG: Record<string, CityConfig> = {
   },
   Paramaribo: {
     name: "Paramaribo",
+    country: "Surinam",
     center: [-55.1668, 5.8520],
     bounds: [
       [-55.25, 5.8],
@@ -478,6 +498,7 @@ const CITIES_CONFIG: Record<string, CityConfig> = {
   },
   CDMX: {
     name: "CDMX",
+    country: "México",
     center: [-99.1332, 19.4326],
     bounds: [
       [-99.3, 19.25],
@@ -497,6 +518,7 @@ const CITIES_CONFIG: Record<string, CityConfig> = {
   },
   "New York": {
     name: "New York",
+    country: "Estados Unidos",
     center: [-74.0060, 40.7128],
     bounds: [
       [-74.25, 40.5],
@@ -516,6 +538,7 @@ const CITIES_CONFIG: Record<string, CityConfig> = {
   },
   Toronto: {
     name: "Toronto",
+    country: "Canadá",
     center: [-79.3832, 43.6532],
     bounds: [
       [-79.6, 43.55],
@@ -535,6 +558,7 @@ const CITIES_CONFIG: Record<string, CityConfig> = {
   },
   "Ciudad de Panama": {
     name: "Ciudad de Panamá",
+    country: "Panamá",
     center: [-79.5198, 8.9824],
     bounds: [
       [-79.65, 8.9],
@@ -554,6 +578,7 @@ const CITIES_CONFIG: Record<string, CityConfig> = {
   },
   "San Jose": {
     name: "San José",
+    country: "Costa Rica",
     center: [-84.0907, 9.9281],
     bounds: [
       [-84.2, 9.85],
@@ -573,6 +598,7 @@ const CITIES_CONFIG: Record<string, CityConfig> = {
   },
   Managua: {
     name: "Managua",
+    country: "Nicaragua",
     center: [-86.2362, 12.1150],
     bounds: [
       [-86.35, 12.05],
@@ -592,6 +618,7 @@ const CITIES_CONFIG: Record<string, CityConfig> = {
   },
   Tegucigalpa: {
     name: "Tegucigalialpa",
+    country: "Honduras",
     center: [-87.2068, 14.0723],
     bounds: [
       [-87.3, 13.98],
@@ -611,6 +638,7 @@ const CITIES_CONFIG: Record<string, CityConfig> = {
   },
   "San Salvador": {
     name: "San Salvador",
+    country: "El Salvador",
     center: [-89.2182, 13.6929],
     bounds: [
       [-89.3, 13.62],
@@ -630,6 +658,7 @@ const CITIES_CONFIG: Record<string, CityConfig> = {
   },
   Guatemala: {
     name: "Ciudad de Guatemala",
+    country: "Guatemala",
     center: [-90.5069, 14.6349],
     bounds: [
       [-90.6, 14.5],
@@ -649,6 +678,7 @@ const CITIES_CONFIG: Record<string, CityConfig> = {
   },
   Belmopan: {
     name: "Belmopán",
+    country: "Belice",
     center: [-88.7735, 17.2510],
     bounds: [
       [-88.85, 17.2],
@@ -670,6 +700,32 @@ const CITIES_CONFIG: Record<string, CityConfig> = {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8001";
 
+// Distribución realista del ciclo de vida de un reporte: la mayoría queda
+// sin verificar, una minoría es verificada por fuente y menos aún alcanza
+// confianza comunitaria por votos.
+const DEMO_STATUS_WEIGHTS: [string, number][] = [
+  ["NO_VERIFICADO", 0.55],
+  ["VERIFICADO", 0.25],
+  ["COMUNITARIAMENTE_CONFIABLE", 0.20],
+];
+
+const DEMO_CATEGORY_WEIGHTS: [string, number][] = [
+  ["Hurto", 0.4],
+  ["Acoso", 0.25],
+  ["Iluminacion", 0.2],
+  ["Alerta", 0.15],
+];
+
+function weightedRandom(weights: [string, number][]): string {
+  const roll = Math.random();
+  let acc = 0;
+  for (const [value, weight] of weights) {
+    acc += weight;
+    if (roll <= acc) return value;
+  }
+  return weights[weights.length - 1][0];
+}
+
 function generateDemoReports(cityKey: string, citiesObj: Record<string, CityConfig> = CITIES_CONFIG): ReportItem[] {
   const config = citiesObj[cityKey] || citiesObj["Cartagena"];
   if (!config.seeds || config.seeds.length === 0) return [];
@@ -683,8 +739,8 @@ function generateDemoReports(cityKey: string, citiesObj: Record<string, CityConf
       title: `Incidente ${i + 1}`,
       description: `Reporte automático de prueba en ${seed.name}`,
       type: "INSTANTANEO" as const,
-      status: Math.random() > 0.5 ? "VERIFICADO" : "NO_VERIFICADO",
-      category: i % 3 === 0 ? "Hurto" : i % 3 === 1 ? "Acoso" : "Iluminacion",
+      status: weightedRandom(DEMO_STATUS_WEIGHTS),
+      category: weightedRandom(DEMO_CATEGORY_WEIGHTS),
       zone: seed.name,
       time: "12:00 PM",
       author: "User",
@@ -694,7 +750,7 @@ function generateDemoReports(cityKey: string, citiesObj: Record<string, CityConf
       votes: { yes: 0, no: 0, unknown: 0 },
       lat: lat,
       lng: lng,
-      isWomensModeRelevant: Math.random() > 0.5,
+      isWomensModeRelevant: Math.random() < 0.25,
     };
   });
 }
@@ -1175,6 +1231,7 @@ export default function Dashboard() {
               const newCityKey = cityName;
               const newCityConfig: CityConfig = {
                 name: newCityKey,
+                country: data.address?.country || "Desconocido",
                 center: [coords.longitude, coords.latitude],
                 bounds: [
                   [coords.longitude - 0.15, coords.latitude - 0.15],
@@ -1794,6 +1851,7 @@ export default function Dashboard() {
               } else {
                 const newCityConfig: CityConfig = {
                   name: city,
+                  country: data.address?.country || "Desconocido",
                   center: [longitude, latitude],
                   bounds: [
                     [longitude - 0.15, latitude - 0.15],
