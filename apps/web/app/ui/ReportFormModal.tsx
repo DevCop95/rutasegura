@@ -16,6 +16,7 @@ type ReportFormModalProps = {
   handleZoneChange: (val: string) => void;
   reportSuggestions: GeocodeSuggestion[];
   handleSelectSuggestion: (suggestion: GeocodeSuggestion) => void;
+  isSubmitting?: boolean;
 };
 
 export default function ReportFormModal({
@@ -25,6 +26,7 @@ export default function ReportFormModal({
   handleZoneChange,
   reportSuggestions,
   handleSelectSuggestion,
+  isSubmitting = false,
 }: ReportFormModalProps) {
   return (
     <NewModal title="Reportar nuevo incidente" onClose={onClose}>
@@ -77,7 +79,13 @@ export default function ReportFormModal({
           <input type="checkbox" id="wm_check" name="is_womens_mode_relevant" className="w-4 h-4 accent-pink-500" />
           <label htmlFor="wm_check" className="text-xs font-medium text-pink-700">Este reporte es relevante para la seguridad de mujeres</label>
         </div>
-        <button type="submit" className="w-full bg-primary text-on-primary py-3 rounded-xl font-bold">Enviar reporte</button>
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="w-full bg-primary text-on-primary py-3 rounded-xl font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isSubmitting ? "Enviando..." : "Enviar reporte"}
+        </button>
       </form>
     </NewModal>
   );

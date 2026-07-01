@@ -1,11 +1,14 @@
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.models.enums import ReportStatus, ReportType
 from app.schemas.geo import CartagenaBoundsMixin
+
+MAX_FUTURE_SKEW = timedelta(minutes=5)
+MAX_REPORT_AGE = timedelta(days=730)
 
 
 class ReportCreate(CartagenaBoundsMixin):
@@ -18,6 +21,17 @@ class ReportCreate(CartagenaBoundsMixin):
     city: str = Field(default="Cartagena", min_length=2, max_length=120)
     neighborhood: str | None = Field(default=None, max_length=120)
     is_womens_mode_relevant: bool = False
+
+    @field_validator("occurred_at")
+    @classmethod
+    def validate_occurred_at(cls, value: datetime) -> datetime:
+        now = datetime.now(timezone.utc)
+        value_utc = value if value.tzinfo is not None else value.replace(tzinfo=timezone.utc)
+        if value_utc > now + MAX_FUTURE_SKEW:
+            raise ValueError("La fecha del incidente no puede estar en el futuro.")
+        if value_utc < now - MAX_REPORT_AGE:
+            raise ValueError("La fecha del incidente es demasiado antigua (maximo 2 anios).")
+        return value
 
 
 class ReportPublic(BaseModel):

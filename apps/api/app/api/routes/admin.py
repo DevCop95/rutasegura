@@ -15,6 +15,21 @@ from app.schemas.report import ReportPublic
 router = APIRouter()
 
 
+def _creates_cycle(db: DbSession, report_id: str, candidate_parent_id: str) -> bool:
+    """Detects whether pointing report_id -> candidate_parent_id closes a cycle
+    by walking candidate_parent_id's existing ancestor chain."""
+    visited: set[str] = set()
+    current = db.get(Report, candidate_parent_id)
+    while current is not None and current.parent_report_id is not None:
+        if current.parent_report_id == report_id:
+            return True
+        if current.parent_report_id in visited:
+            break
+        visited.add(current.parent_report_id)
+        current = db.get(Report, current.parent_report_id)
+    return False
+
+
 @router.get("/reports", response_model=list[ReportPublic])
 def list_reports_for_admin(admin: AdminUser, db: DbSession) -> list[ReportPublic]:
     reports = db.scalars(select(Report).order_by(Report.created_at.desc()).limit(200)).all()
@@ -54,6 +69,11 @@ def mark_duplicate(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reporte no encontrado.")
     if report.id == parent.id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El padre debe ser distinto.")
+    if _creates_cycle(db, report.id, parent.id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Esa fusion crearia una cadena circular de duplicados.",
+        )
 
     report.parent_report_id = parent.id
     parent.duplicate_group_count += 1

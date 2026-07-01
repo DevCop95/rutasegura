@@ -923,6 +923,9 @@ export default function Dashboard() {
   const [editAlias, setEditAlias] = useState("");
   const [editPassword, setEditPassword] = useState("");
   const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+  const [isSubmittingBusiness, setIsSubmittingBusiness] = useState(false);
+  const [isSubmittingAuth, setIsSubmittingAuth] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showWomensModeConfirm, setShowWomensModeConfirm] = useState(false);
   const [showVoteForm, setShowVoteForm] = useState<{ id: string; type: "report" | "business"; vote: "SI" | "NO" | "NO_SE" } | null>(null);
@@ -1020,11 +1023,17 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
+    const saved = localStorage.getItem("rs_dark_mode");
+    if (saved === "true") setDarkMode(true);
+  }, []);
+
+  useEffect(() => {
     if (darkMode) {
       document.documentElement.classList.add("dark");
     } else {
       document.documentElement.classList.remove("dark");
     }
+    localStorage.setItem("rs_dark_mode", String(darkMode));
   }, [darkMode]);
 
   const filteredReports = useMemo(() => {
@@ -1238,6 +1247,7 @@ export default function Dashboard() {
       password: String(form.get("password") ?? ""),
       user_type: activeRole,
     };
+    setIsSubmittingAuth(true);
     try {
       if (authMode === "login") {
         const response = await api<{ access_token: string; user: UserPublic }>(
@@ -1269,6 +1279,8 @@ export default function Dashboard() {
       }
     } catch (error) {
       setToast(error instanceof Error ? error.message : "No se pudo autenticar.");
+    } finally {
+      setIsSubmittingAuth(false);
     }
   }
 
@@ -1276,6 +1288,7 @@ export default function Dashboard() {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const code = String(form.get("code") ?? "");
+    setIsSubmittingAuth(true);
     try {
       const response = await api<{ access_token: string; user: UserPublic }>(
         `/api/v1/auth/verify`,
@@ -1292,6 +1305,8 @@ export default function Dashboard() {
       setToast(`Cuenta verificada y sesión iniciada: ${response.user.alias}`);
     } catch (error) {
       setToast(error instanceof Error ? error.message : "Código inválido o expirado.");
+    } finally {
+      setIsSubmittingAuth(false);
     }
   }
 
@@ -1407,6 +1422,7 @@ export default function Dashboard() {
       is_womens_mode_relevant: form.get("is_womens_mode_relevant") === "on",
     };
 
+    setIsSubmittingReport(true);
     try {
       const report = await api<Record<string, unknown>>("/api/v1/reports", {
         method: "POST",
@@ -1421,6 +1437,8 @@ export default function Dashboard() {
       setToast("Reporte creado y guardado en SQLite.");
     } catch (error) {
       setToast(error instanceof Error ? error.message : "No se pudo crear el reporte.");
+    } finally {
+      setIsSubmittingReport(false);
     }
   }
 
@@ -1476,6 +1494,7 @@ export default function Dashboard() {
       lat: Number(form.get("lat") || 10.4252),
       lng: Number(form.get("lng") || -75.5487),
     };
+    setIsSubmittingBusiness(true);
     try {
       const business = await api<Record<string, unknown>>("/api/v1/businesses", {
         method: "POST",
@@ -1486,6 +1505,8 @@ export default function Dashboard() {
       setToast("Empresa registrada en SQLite.");
     } catch (error) {
       setToast(error instanceof Error ? error.message : "No se pudo registrar la empresa.");
+    } finally {
+      setIsSubmittingBusiness(false);
     }
   }
 
@@ -2090,6 +2111,19 @@ export default function Dashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-outline-variant/30">
+                  {(activeTab === "map" || activeTab === "admin") && filteredReports.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-10 text-center text-sm text-outline">
+                        No hay reportes que coincidan con los filtros actuales.
+                      </td>
+                    </tr>
+                  ) : activeTab === "business" && businesses.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-10 text-center text-sm text-outline">
+                        Todavía no hay puntos seguros registrados en esta ciudad.
+                      </td>
+                    </tr>
+                  ) : null}
                   {activeTab === "map" || activeTab === "admin" ? filteredReports.map((report) => (
                     <tr key={report.id} className="hover:bg-surface-container-low transition-colors group">
                       <td className="px-6 py-4">
@@ -2159,6 +2193,7 @@ export default function Dashboard() {
           handleVerify={handleVerify}
           handleResendCode={handleResendCode}
           roleLabel={roleLabel}
+          isSubmitting={isSubmittingAuth}
         />
       )}
 
@@ -2170,6 +2205,7 @@ export default function Dashboard() {
           handleZoneChange={handleZoneChange}
           reportSuggestions={reportSuggestions}
           handleSelectSuggestion={handleSelectSuggestion}
+          isSubmitting={isSubmittingReport}
         />
       )}
 
@@ -2179,6 +2215,7 @@ export default function Dashboard() {
           createBusiness={createBusiness}
           defaultLat={cities[currentCity]?.center[1]}
           defaultLng={cities[currentCity]?.center[0]}
+          isSubmitting={isSubmittingBusiness}
         />
       )}
 

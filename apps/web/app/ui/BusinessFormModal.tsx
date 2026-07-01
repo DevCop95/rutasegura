@@ -8,6 +8,7 @@ type BusinessFormModalProps = {
   createBusiness: (event: FormEvent<HTMLFormElement>) => void;
   defaultLat?: number;
   defaultLng?: number;
+  isSubmitting?: boolean;
 };
 
 export default function BusinessFormModal({
@@ -15,6 +16,7 @@ export default function BusinessFormModal({
   createBusiness,
   defaultLat = 10.4252,
   defaultLng = -75.5487,
+  isSubmitting = false,
 }: BusinessFormModalProps) {
   const [lat, setLat] = useState(defaultLat.toString());
   const [lng, setLng] = useState(defaultLng.toString());
@@ -105,9 +107,10 @@ export default function BusinessFormModal({
 
         <button
           type="submit"
-          className="w-full bg-secondary text-on-secondary py-3 rounded-xl font-bold shadow-lg shadow-secondary/20 hover:shadow-xl transition-all active:scale-[0.98]"
+          disabled={isSubmitting}
+          className="w-full bg-secondary text-on-secondary py-3 rounded-xl font-bold shadow-lg shadow-secondary/20 hover:shadow-xl transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
         >
-          Registrar Establecimiento
+          {isSubmitting ? "Registrando..." : "Registrar Establecimiento"}
         </button>
       </form>
     </NewModal>

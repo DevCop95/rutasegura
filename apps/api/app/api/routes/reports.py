@@ -4,9 +4,12 @@ from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import select
 
 from app.api.deps import CurrentUser, DbSession
+from app.models.enums import ReportStatus
 from app.models.report import Report
 from app.schemas.report import ReportCreate, ReportPublic
 from app.services.duplicates import find_duplicate_parent_id
+
+HIDDEN_STATUSES = (ReportStatus.OCULTO, ReportStatus.RECHAZADO)
 
 router = APIRouter()
 
@@ -58,6 +61,8 @@ def list_reports(
     query = select(Report).where(Report.city == city).order_by(Report.occurred_at.desc()).limit(limit)
     if status_filter is not None:
         query = query.where(Report.status == status_filter)
+    else:
+        query = query.where(Report.status.notin_(HIDDEN_STATUSES))
     if neighborhood is not None:
         query = query.where(Report.neighborhood == neighborhood)
     if womens_mode is True:

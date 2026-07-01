@@ -18,10 +18,16 @@ from app.services.reputation import vote_weight_for_user
 
 router = APIRouter()
 
+PUBLIC_BUSINESS_STATUSES = (BusinessStatus.APROBADO, BusinessStatus.PENDIENTE_VERIFICACION)
+
 
 @router.get("", response_model=list[BusinessPublic])
 def list_businesses(db: DbSession) -> list[BusinessPublic]:
-    businesses = db.scalars(select(Business).order_by(Business.created_at.desc())).all()
+    businesses = db.scalars(
+        select(Business)
+        .where(Business.status.in_(PUBLIC_BUSINESS_STATUSES))
+        .order_by(Business.created_at.desc())
+    ).all()
     return [BusinessPublic.model_validate(business) for business in businesses]
 
 

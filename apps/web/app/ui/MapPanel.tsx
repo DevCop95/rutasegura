@@ -22,6 +22,8 @@ export type MapReport = {
   category: string;
   lat: number;
   lng: number;
+  zone?: string;
+  time?: string;
 };
 
 export type MapBusiness = {
@@ -31,6 +33,7 @@ export type MapBusiness = {
   category: string;
   lat: number;
   lng: number;
+  zone?: string;
 };
 
 type MapPanelProps = {
@@ -118,7 +121,12 @@ export default function MapPanel({
               <MarkerPopup>
                 <div className="bg-surface p-3 rounded-xl shadow-2xl border border-outline-variant min-w-[180px]">
                   <strong className="block text-sm font-headline font-bold text-on-surface leading-tight mb-1">{report.title}</strong>
-                  <span className="block text-xs text-outline mb-2">{report.category}</span>
+                  <span className="block text-xs text-outline mb-1">{report.category}</span>
+                  {(report.zone || report.time) && (
+                    <span className="block text-[11px] text-outline/80 mb-2">
+                      {[report.zone, report.time].filter(Boolean).join(" · ")}
+                    </span>
+                  )}
                   <div className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
                     report.status === "VERIFICADO" ? "bg-secondary/10 text-secondary" : "bg-error/10 text-error"
                   }`}>
@@ -148,7 +156,10 @@ export default function MapPanel({
               <MarkerPopup>
                 <div className="bg-surface p-3 rounded-xl shadow-2xl border border-outline-variant min-w-[180px]">
                   <strong className="block text-sm font-headline font-bold text-on-surface leading-tight mb-1">{business.name}</strong>
-                  <span className="block text-xs text-outline mb-2">{business.category}</span>
+                  <span className="block text-xs text-outline mb-1">{business.category}</span>
+                  {business.zone && (
+                    <span className="block text-[11px] text-outline/80 mb-2">{business.zone}</span>
+                  )}
                   <div className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
                     business.status === "APROBADO" ? "bg-secondary/10 text-secondary" : "bg-outline/10 text-outline"
                   }`}>

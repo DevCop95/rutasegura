@@ -12,6 +12,7 @@ type AuthModalProps = {
   handleVerify: (event: FormEvent<HTMLFormElement>) => void;
   handleResendCode: () => void;
   roleLabel: (role: string) => string;
+  isSubmitting?: boolean;
 };
 
 export default function AuthModal({
@@ -23,6 +24,7 @@ export default function AuthModal({
   handleVerify,
   handleResendCode,
   roleLabel,
+  isSubmitting = false,
 }: AuthModalProps) {
   return (
     <NewModal 
@@ -52,8 +54,12 @@ export default function AuthModal({
               className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant rounded-xl outline-none focus:ring-2 focus:ring-primary/20 transition-all text-center tracking-[0.5em] text-lg font-bold" 
             />
           </div>
-          <button type="submit" className="w-full bg-primary text-on-primary py-3 rounded-xl font-bold shadow-lg shadow-primary/20 hover:shadow-xl transition-all active:scale-[0.98]">
-            Verificar Cuenta
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full bg-primary text-on-primary py-3 rounded-xl font-bold shadow-lg shadow-primary/20 hover:shadow-xl transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
+          >
+            {isSubmitting ? "Verificando..." : "Verificar Cuenta"}
           </button>
           <div className="flex justify-between text-xs font-semibold px-1">
             <button type="button" onClick={handleResendCode} className="text-primary hover:underline bg-transparent border-0 cursor-pointer">
@@ -85,8 +91,12 @@ export default function AuthModal({
               </p>
             )}
           </div>
-          <button type="submit" className="w-full bg-primary text-on-primary py-3 rounded-xl font-bold shadow-lg shadow-primary/20 hover:shadow-xl transition-all active:scale-[0.98]">
-            {authMode === "login" ? "Entrar" : `Registrar como ${roleLabel(activeRole)}`}
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full bg-primary text-on-primary py-3 rounded-xl font-bold shadow-lg shadow-primary/20 hover:shadow-xl transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
+          >
+            {isSubmitting ? "Procesando..." : authMode === "login" ? "Entrar" : `Registrar como ${roleLabel(activeRole)}`}
           </button>
         </form>
       )}
