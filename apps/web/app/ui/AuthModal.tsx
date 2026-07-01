@@ -1,7 +1,16 @@
 "use client";
 
-import React, { FormEvent } from "react";
+import React, { FormEvent, useState } from "react";
+import { Check, X } from "lucide-react";
 import NewModal from "@/components/ui/NewModal";
+
+const PASSWORD_RULES: { label: string; test: (v: string) => boolean }[] = [
+  { label: "Al menos 8 caracteres", test: (v) => v.length >= 8 },
+  { label: "Una letra mayúscula", test: (v) => /[A-Z]/.test(v) },
+  { label: "Una letra minúscula", test: (v) => /[a-z]/.test(v) },
+  { label: "Un número", test: (v) => /\d/.test(v) },
+  { label: "Un carácter especial (!@#$%...)", test: (v) => /[!@#$%^&*(),.?":{}|<>]/.test(v) },
+];
 
 type AuthModalProps = {
   authMode: "login" | "register" | "verify_email";
@@ -26,6 +35,9 @@ export default function AuthModal({
   roleLabel,
   isSubmitting = false,
 }: AuthModalProps) {
+  const [password, setPassword] = useState("");
+  const passwordRulesOk = PASSWORD_RULES.every((rule) => rule.test(password));
+
   return (
     <NewModal 
       title={
@@ -84,16 +96,35 @@ export default function AuthModal({
           )}
           <div className="space-y-1">
             <label className="text-sm font-bold text-on-surface/70 ml-1">Contraseña</label>
-            <input name="password" type="password" required minLength={8} className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant rounded-xl outline-none focus:ring-2 focus:ring-primary/20 transition-all" />
+            <input
+              name="password"
+              type="password"
+              required
+              minLength={8}
+              value={authMode === "register" ? password : undefined}
+              onChange={authMode === "register" ? (e) => setPassword(e.target.value) : undefined}
+              className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant rounded-xl outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+            />
             {authMode === "register" && (
-              <p className="text-[11px] text-outline ml-1 leading-normal">
-                Debe tener al menos 8 caracteres, incluir una mayúscula, una minúscula, un número y un carácter especial (ej. !@#$%).
-              </p>
+              <ul className="mt-1.5 space-y-0.5">
+                {PASSWORD_RULES.map((rule) => {
+                  const ok = rule.test(password);
+                  return (
+                    <li
+                      key={rule.label}
+                      className={`flex items-center gap-1.5 text-[11px] ${ok ? "text-secondary" : "text-outline"}`}
+                    >
+                      {ok ? <Check size={12} className="shrink-0" /> : <X size={12} className="shrink-0" />}
+                      {rule.label}
+                    </li>
+                  );
+                })}
+              </ul>
             )}
           </div>
           <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || (authMode === "register" && !passwordRulesOk)}
             className="w-full bg-primary text-on-primary py-3 rounded-xl font-bold shadow-lg shadow-primary/20 hover:shadow-xl transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
           >
             {isSubmitting ? "Procesando..." : authMode === "login" ? "Entrar" : `Registrar como ${roleLabel(activeRole)}`}

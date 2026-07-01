@@ -14,14 +14,17 @@ class RegisterRequest(BaseModel):
     @field_validator("password")
     @classmethod
     def validate_password_strength(cls, v: str) -> str:
+        missing = []
         if not re.search(r"[A-Z]", v):
-            raise ValueError("La contraseña debe contener al menos una letra mayúscula.")
+            missing.append("una letra mayúscula")
         if not re.search(r"[a-z]", v):
-            raise ValueError("La contraseña debe contener al menos una letra minúscula.")
+            missing.append("una letra minúscula")
         if not re.search(r"\d", v):
-            raise ValueError("La contraseña debe contener al menos un número.")
+            missing.append("un número")
         if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", v):
-            raise ValueError("La contraseña debe contener al menos un carácter especial.")
+            missing.append("un carácter especial (!@#$%^&*(),.?\":{}|<>)")
+        if missing:
+            raise ValueError("La contraseña debe contener al menos: " + ", ".join(missing) + ".")
         return v
 
 
